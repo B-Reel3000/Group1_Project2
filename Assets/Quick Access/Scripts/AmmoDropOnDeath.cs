@@ -2,15 +2,15 @@ using UnityEngine;
 
 public class AmmoDropOnDeath : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    public int ammoAmount = 2;
 
-    // Update is called once per frame
-    void Update()
+    private void OnTriggerEnter(Collider other)
     {
-        
+        PlayerGun gun = other.GetComponentInParent<PlayerGun>();
+        if (gun != null)
+        {
+            gun.AddAmmo(ammoAmount);
+            Destroy(gameObject);
+        }
     }
 }
