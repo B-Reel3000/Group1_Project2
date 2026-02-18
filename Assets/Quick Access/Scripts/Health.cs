@@ -6,11 +6,9 @@ public class Health : MonoBehaviour
     public int maxHealth = 5;
     int current;
 
-    // tells us if it was melee or gun
     public enum DamageType { Melee, Gun }
-    DamageType lastDamageType;
 
-    public Action<DamageType> OnDeath;
+    public event Action<Health, DamageType> OnDeath;
 
     void Awake()
     {
@@ -19,16 +17,17 @@ public class Health : MonoBehaviour
 
     public void TakeDamage(int amount, DamageType type)
     {
-        lastDamageType = type;
-
         current -= amount;
+
         if (current <= 0)
-            Die();
+            Die(type);
     }
 
-    void Die()
+    void Die(DamageType type)
     {
-        OnDeath?.Invoke(lastDamageType);
+        // IMPORTANT: send BOTH the enemy and the damage type
+        OnDeath?.Invoke(this, type);
+
         gameObject.SetActive(false);
     }
 }
