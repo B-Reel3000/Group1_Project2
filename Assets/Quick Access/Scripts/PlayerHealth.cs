@@ -16,8 +16,18 @@ public class PlayerHealth : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            Debug.Log("Player died!");
-            // TODO: death/game over
+            Die();
         }
+    }
+
+    void Die()
+    {
+        Debug.Log("Player died!");
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.Lose();
+
+        // Optional: disable player controls
+        // GetComponent<PlayerController>().enabled = false;
     }
 }

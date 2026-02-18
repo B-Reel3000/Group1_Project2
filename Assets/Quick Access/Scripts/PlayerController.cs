@@ -1,20 +1,25 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Unity.Cinemachine;
 
+[RequireComponent(typeof(Rigidbody), typeof(Collider))]
 public class PlayerController : MonoBehaviour
 {
     [Header("References")]
-    public Transform cameraPivot;            // Player/CameraPivot (Cinemachine Tracking Target)
-    public CinemachineCamera exploreCam;     // Cinemachine Camera (Explore)
-    public CinemachineCamera aimCam;         // Cinemachine Camera (Aim)
-    public CinemachineBrain brain;           // Drag Main Camera (has Cinemachine Brain)
+    public Transform cameraPivot;          // Player/CameraPivot
+    public GameObject reticle;             // UI reticle (only active while aiming)
 
-    [Header("UI (optional)")]
-    public GameObject reticle;
+    [Header("Cinemachine Cameras (Optional)")]
+    public Unity.Cinemachine.CinemachineCamera exploreCam;
+    public Unity.Cinemachine.CinemachineCamera aimCam;
 
     [Header("Move")]
     public float moveSpeed = 5f;
+
+    [Header("Steps")]
+    public float stepHeight = 0.35f;
+    public float stepCheckDistance = 0.40f;
+    public float stepUpSpeed = 6f;
+    public LayerMask groundLayers = ~0;
 
     [Header("Look")]
     public float sensitivityX = 0.12f;
@@ -22,16 +27,26 @@ public class PlayerController : MonoBehaviour
     public float minPitch = -35f;
     public float maxPitch = 70f;
 
-    [Header("Aim (Cinemachine Priority)")]
+    [Header("Aim")]
     public int explorePriority = 20;
     public int aimPriority = 10;
 
-    [Header("Quickdraw Camera Switch")]
-    [Tooltip("0 = instant cut. Try 0.03 - 0.08 for a snappy blend.")]
-    public float quickdrawBlendTime = 0.03f;
-
+    Rigidbody rb;
+    Vector2 moveInput;
     float pitch;
     bool isAiming;
+
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        rb.freezeRotation = true;
+
+        rb.useGravity = true;
+        rb.isKinematic = false;
+    }
 
     void Start()
     {
@@ -39,7 +54,7 @@ public class PlayerController : MonoBehaviour
         Cursor.visible = false;
 
         if (cameraPivot != null)
-            pitch = cameraPivot.localEulerAngles.x;
+            pitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
 
         SetAim(false);
     }
@@ -48,12 +63,17 @@ public class PlayerController : MonoBehaviour
     {
         if (cameraPivot == null) return;
 
+        // Aim toggle
         if (Keyboard.current != null)
         {
             if (Keyboard.current.rKey.wasPressedThisFrame) SetAim(true);
             if (Keyboard.current.qKey.wasPressedThisFrame) SetAim(false);
         }
 
+        // Movement input (stored for FixedUpdate)
+        moveInput = ReadMoveKeys();
+
+        // Mouse look
         if (Mouse.current != null)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
@@ -62,17 +82,46 @@ public class PlayerController : MonoBehaviour
             float yaw = delta.x * sensitivityX;
             transform.Rotate(0f, yaw, 0f, Space.World);
 
-            // pitch rotates the pivot
+            // pitch rotates the camera pivot
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
+    }
 
-        Vector2 move = ReadMoveKeys();
-        if (move.sqrMagnitude > 0.001f)
+    void FixedUpdate()
+    {
+        // Horizontal movement only (gravity handles Y)
+        Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
+        if (dir.sqrMagnitude > 1f) dir.Normalize();
+
+        Vector3 delta = dir * moveSpeed * Time.fixedDeltaTime;
+
+        // Step assist
+        StepClimb(delta);
+
+        Vector3 nextPos = rb.position + new Vector3(delta.x, 0f, delta.z);
+        rb.MovePosition(nextPos);
+    }
+
+    void StepClimb(Vector3 horizontalDelta)
+    {
+        if (horizontalDelta.sqrMagnitude < 0.00001f) return;
+
+        Vector3 dir = horizontalDelta.normalized;
+
+        // Lower ray hits the step face
+        Vector3 lowerOrigin = transform.position + Vector3.up * 0.05f;
+        // Upper ray checks if there's room above the step
+        Vector3 upperOrigin = transform.position + Vector3.up * (stepHeight + 0.05f);
+
+        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit lower, stepCheckDistance, groundLayers);
+        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers);
+
+        // If we hit something low but not high, climb a bit
+        if (lowerHit && !upperHit)
         {
-            Vector3 moveDir = (transform.forward * move.y + transform.right * move.x).normalized;
-            transform.position += moveDir * moveSpeed * Time.deltaTime;
+            rb.position += Vector3.up * (stepUpSpeed * Time.fixedDeltaTime);
         }
     }
 
@@ -80,31 +129,16 @@ public class PlayerController : MonoBehaviour
     {
         isAiming = aiming;
 
-        // Swap priorities
-        if (exploreCam != null) exploreCam.Priority = aiming ? aimPriority : explorePriority;
-        if (aimCam != null)     aimCam.Priority     = aiming ? explorePriority : aimPriority;
+        // Cinemachine switching
+        if (exploreCam != null)
+            exploreCam.Priority = aiming ? aimPriority : explorePriority;
 
-        // Optional reticle
-        if (reticle != null) reticle.SetActive(aiming);
+        if (aimCam != null)
+            aimCam.Priority = aiming ? explorePriority : aimPriority;
 
-        // QUICKDRAW: force blend time (or cut)
-        ApplyQuickdrawBlend();
-    }
-
-    void ApplyQuickdrawBlend()
-    {
-        if (brain == null) return;
-
-        // Cinemachine Brain blend is what makes switching feel “slow”
-        // Setting time to 0 makes it an instant cut.
-        var blend = brain.DefaultBlend;
-        blend.Time = quickdrawBlendTime;
-
-        // If you want true “cut” behavior when time == 0:
-        if (quickdrawBlendTime <= 0f)
-            blend.Style = CinemachineBlendDefinition.Styles.Cut;
-
-        brain.DefaultBlend = blend;
+        // Reticle
+        if (reticle != null)
+            reticle.SetActive(aiming);
     }
 
     Vector2 ReadMoveKeys()
@@ -118,6 +152,13 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current.aKey.isPressed) v.x -= 1f;
 
         return v.normalized;
+    }
+
+    float NormalizeAngle(float angle)
+    {
+        while (angle > 180f) angle -= 360f;
+        while (angle < -180f) angle += 360f;
+        return angle;
     }
 
     public bool IsAiming => isAiming;

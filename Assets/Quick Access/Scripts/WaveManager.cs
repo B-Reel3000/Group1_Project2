@@ -11,22 +11,21 @@ public class WaveManager : MonoBehaviour
 
     public List<Wave> waves = new List<Wave>();
 
-    int currentWaveIndex = 0;
+    int currentWaveIndex = -1;
     int aliveInWave = 0;
 
     void Start()
     {
-        // Freeze ALL enemies first
+        // Turn everything off first
         foreach (var w in waves)
         {
             foreach (var e in w.enemies)
             {
                 if (e == null) continue;
-                SetEnemyActive(e, false);
+                e.SetActive(false);
             }
         }
 
-        // Start wave 0
         StartWave(0);
     }
 
@@ -41,19 +40,26 @@ public class WaveManager : MonoBehaviour
         {
             if (e == null) continue;
 
-            SetEnemyActive(e, true);
+            // Activate enemy
+            e.SetActive(true);
             aliveInWave++;
 
             // Subscribe to death
-            Health h = e.GetComponentInParent<Health>() ?? e.GetComponent<Health>();
+            Health h = e.GetComponent<Health>();
+            if (h == null) h = e.GetComponentInChildren<Health>();
+
             if (h != null)
             {
-                h.OnDeath -= OnEnemyDied; // prevent double subscribe
+                h.OnDeath -= OnEnemyDied; // prevent double-subscribe
                 h.OnDeath += OnEnemyDied;
+            }
+            else
+            {
+                Debug.LogWarning($"Wave enemy {e.name} has no Health component.");
             }
         }
 
-        Debug.Log($"Wave {waveIndex} started with {aliveInWave} enemies.");
+        Debug.Log($"Wave {waveIndex + 1} started with {aliveInWave} enemies.");
     }
 
     void OnEnemyDied(Health whoDied, Health.DamageType type)
@@ -64,21 +70,13 @@ public class WaveManager : MonoBehaviour
         {
             int next = currentWaveIndex + 1;
             if (next < waves.Count)
+            {
                 StartWave(next);
+            }
             else
+            {
                 Debug.Log("All waves cleared!");
+            }
         }
     }
-
-    void SetEnemyActive(GameObject enemy, bool active)
-    {
-        // If you prefer: enemy.SetActive(active);
-        EnemyActivator act = enemy.GetComponent<EnemyActivator>();
-        if (act != null) act.SetActiveForCombat(active);
-
-        // Optional: also stop them from “bumping” if frozen
-        Rigidbody rb = enemy.GetComponent<Rigidbody>();
-        if (rb != null) rb.isKinematic = !active;
-    }
 }
-
