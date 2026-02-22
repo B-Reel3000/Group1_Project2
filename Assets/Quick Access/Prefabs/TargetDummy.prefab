@@ -174,11 +174,12 @@ MonoBehaviour:
   separationStrength: 9
   enemyLayers:
     serializedVersion: 2
-    m_Bits: 8
+    m_Bits: 0
   stateMinTime: 0.4
   separationSmooth: 10
   separationMaxInfluence: 0.75
   separationDeadZone: 0.02
+  debugLogs: 0
 --- !u!114 &3884746965352502880
 MonoBehaviour:
   m_ObjectHideFlags: 0
