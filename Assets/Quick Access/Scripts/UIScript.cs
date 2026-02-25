@@ -2,6 +2,7 @@
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.Playables;
 using System.Collections;
 
 public class UIScript : MonoBehaviour
@@ -55,18 +56,14 @@ public class UIScript : MonoBehaviour
 
     [Header("Scene Loading")]
     public string LoadLevelOne = "Level One";
-    public string LoadLevelTwo = "Level Two";
-    public string LoadLevelThree = "Level Three";
 
-    [Header("Play Movement")]
-    public Transform playObject;
-    public float playMoveAmount = 2f;
-    public float playMoveDuration = 0.5f;
+    [Header("Main Menu Timeline")]
+    public PlayableDirector playDirector;
     #endregion
+
     #region Private
     private bool isPaused = false;
-
-    public static string lastSceneName = "";
+    private bool playSequenceStarted = false;
 
     private RectTransform slideRect;
     private bool slideOpen = false;
@@ -74,13 +71,10 @@ public class UIScript : MonoBehaviour
 
     private Vector3 returnPos;
     private Quaternion returnRot;
-    private Coroutine playMoveRoutine;
     private Coroutine cameraMoveRoutine;
     public float cameraMoveDuration = 0.5f;
-
-    private Animator pauseCameraAnimator;
     #endregion
-    #region Start up
+
     bool IsInMainMenu()
     {
         return SceneManager.GetActiveScene().name == "MainMenu";
@@ -101,6 +95,7 @@ public class UIScript : MonoBehaviour
             slideRect.anchoredPosition = hiddenPosition;
         }
 
+        // Button hookups
         if (playButton != null) playButton.onClick.AddListener(PlayGame);
         if (helpButton != null) helpButton.onClick.AddListener(OpenHelpPanel);
         if (creditsButton != null) creditsButton.onClick.AddListener(OpenCredits);
@@ -127,25 +122,30 @@ public class UIScript : MonoBehaviour
 
             if (pausePanel != null) pausePanel.SetActive(true);
 
-            pauseCameraAnimator = pauseUICamera.GetComponent<Animator>();
+            // THE IMPORTANT FIX
+            // Completely disable timeline so it cannot evaluate at startup
+            if (playDirector != null)
+            {
+                playDirector.Stop();
+                playDirector.time = 0;
+                playDirector.enabled = false;
+                playSequenceStarted = false;
+            }
         }
     }
 
     void Update()
     {
-        if (helpPanel != null && helpPanel.activeSelf)
-            return;
-
-        if (IsInMainMenu())
-            return;
+        if (helpPanel != null && helpPanel.activeSelf) return;
+        if (IsInMainMenu()) return;
 
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             TogglePause();
         }
     }
-    #endregion
-    #region Camera Controls
+
+    #region Camera
     void ShowCursor()
     {
         Cursor.lockState = CursorLockMode.None;
@@ -179,77 +179,39 @@ public class UIScript : MonoBehaviour
         DisableAllCameras();
         if (pauseUICamera != null) pauseUICamera.enabled = true;
     }
-
-    void SwitchToLoseCamera()
-    {
-        DisableAllCameras();
-        if (loseCamera != null) loseCamera.enabled = true;
-    }
-
-    void SwitchToCreditsUICamera()
-    {
-        DisableAllCameras();
-        if (creditsUICamera != null) creditsUICamera.enabled = true;
-    }
-
-    void MoveToCamera(Camera targetCamera)
-    {
-        if (targetCamera == null)
-            return;
-
-        if (cameraMoveRoutine != null)
-            StopCoroutine(cameraMoveRoutine);
-
-        cameraMoveRoutine = StartCoroutine(
-            MoveCamera(
-                targetCamera.transform.position,
-                targetCamera.transform.rotation
-            )
-        );
-    }
-
-    IEnumerator MoveCamera(Vector3 targetPos, Quaternion targetRot)
-    {
-        float elapsed = 0f;
-
-        Vector3 startPos = pauseUICamera.transform.position;
-        Quaternion startRot = pauseUICamera.transform.rotation;
-
-        while (elapsed < cameraMoveDuration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / cameraMoveDuration;
-
-            pauseUICamera.transform.position = Vector3.Lerp(startPos, targetPos, t);
-            pauseUICamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
-
-            yield return null;
-        }
-
-        pauseUICamera.transform.position = targetPos;
-        pauseUICamera.transform.rotation = targetRot;
-    }
     #endregion
-    #region UI Logic
+
+    #region Menu Actions
+
     public void PlayGame()
     {
+        if (playSequenceStarted) return;
+        playSequenceStarted = true;
+
         if (pausePanel != null) pausePanel.SetActive(false);
 
-        if (playObject == null)
-            return;
+        if (playDirector != null)
+        {
+            // Enable timeline ONLY now
+            playDirector.enabled = true;
+            playDirector.Stop();
+            playDirector.time = 0;
+            playDirector.Evaluate();
+            playDirector.Play();
+        }
+    }
 
-        if (playMoveRoutine != null)
-            StopCoroutine(playMoveRoutine);
-
-        playMoveRoutine = StartCoroutine(MovePlayObjectUp());
+    // CALLED BY TIMELINE SIGNAL AT END
+    public void LoadLevelOneScene()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(LoadLevelOne);
     }
 
     public void ToggleSlidePanel()
     {
-        if (slideRect == null)
-            return;
+        if (slideRect == null) return;
 
-        ExtraButton.transform.localRotation *= Quaternion.Euler(0, 0, 180);
         slideOpen = !slideOpen;
 
         if (slideRoutine != null)
@@ -278,9 +240,6 @@ public class UIScript : MonoBehaviour
 
     public void OpenHelpPanel()
     {
-        returnPos = pauseUICamera.transform.position;
-        returnRot = pauseUICamera.transform.rotation;
-        MoveToCamera(helpUICamera);
         if (helpPanel != null) helpPanel.SetActive(true);
         if (pausePanel != null) pausePanel.SetActive(false);
     }
@@ -289,19 +248,10 @@ public class UIScript : MonoBehaviour
     {
         if (helpPanel != null) helpPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
-        if (cameraMoveRoutine != null)
-            StopCoroutine(cameraMoveRoutine);
-
-        cameraMoveRoutine = StartCoroutine(
-            MoveCamera(returnPos, returnRot)
-        );
     }
 
     public void OpenCredits()
     {
-        returnPos = pauseUICamera.transform.position;
-        returnRot = pauseUICamera.transform.rotation;
-        MoveToCamera(creditsUICamera);
         if (creditsPanel != null) creditsPanel.SetActive(true);
         if (pausePanel != null) pausePanel.SetActive(false);
     }
@@ -310,12 +260,41 @@ public class UIScript : MonoBehaviour
     {
         if (creditsPanel != null) creditsPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
-        if (cameraMoveRoutine != null)
-            StopCoroutine(cameraMoveRoutine);
+    }
 
-        cameraMoveRoutine = StartCoroutine(
-            MoveCamera(returnPos, returnRot)
-        );
+    public void ResumeGame()
+    {
+        isPaused = false;
+        Time.timeScale = 1f;
+        HideCursor();
+
+        if (pausePanel != null) pausePanel.SetActive(false);
+        if (GameplayUI != null) GameplayUI.SetActive(true);
+
+        SwitchToGameplayCamera();
+    }
+
+    public void RestartLevel()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void ReturnToMainMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    public void RetryLevel()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void QuitGame()
+    {
+        Application.Quit();
     }
 
     public void TogglePause()
@@ -342,92 +321,6 @@ public class UIScript : MonoBehaviour
 
             SwitchToGameplayCamera();
         }
-    }
-
-    public void ResumeGame()
-    {
-        isPaused = false;
-        Time.timeScale = 1f;
-        HideCursor();
-
-        if (pausePanel != null) pausePanel.SetActive(false);
-        if (GameplayUI != null) GameplayUI.SetActive(true);
-
-        SwitchToGameplayCamera();
-    }
-
-    public void ReturnToMainMenu()
-    {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("MainMenu");
-    }
-
-    public void RestartLevel()
-    {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
-
-    public void ReturnToPreviousScene()
-    {
-        if (!string.IsNullOrEmpty(lastSceneName))
-        {
-            Time.timeScale = 1f;
-            SceneManager.LoadScene(lastSceneName);
-        }
-        else
-        {
-            SceneManager.LoadScene("MainMenu");
-        }
-    }
-
-    public void PlayLoseScene()
-    {
-        isPaused = true;
-        Time.timeScale = 0f;
-
-        SwitchToLoseCamera();
-
-        if (GameplayUI != null) GameplayUI.SetActive(false);
-        if (losePanel != null) losePanel.SetActive(true);
-
-        ShowCursor();
-    }
-
-    public void RetryLevel()
-    {
-        Time.timeScale = 1f;
-
-        if (losePanel != null) losePanel.SetActive(false);
-
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
-
-    public void QuitGame()
-    {
-        Application.Quit();
-    }
-    #endregion
-    #region Animation
-    IEnumerator MovePlayObjectUp()
-    {
-        float elapsed = 0f;
-
-        Vector3 startPos = playObject.position;
-        Vector3 targetPos = startPos + Vector3.up * playMoveAmount;
-
-        while (elapsed < playMoveDuration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / playMoveDuration;
-
-            playObject.position = Vector3.Lerp(startPos, targetPos, t);
-
-            yield return null;
-        }
-
-        playObject.position = targetPos;
-        SceneManager.LoadScene(LoadLevelOne);
     }
     #endregion
 }
