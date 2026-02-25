@@ -14076,6 +14076,7 @@ GameObject:
   m_Component:
   - component: {fileID: 614645024}
   - component: {fileID: 614645025}
+  - component: {fileID: 614645026}
   m_Layer: 0
   m_Name: PopupManager
   m_TagString: Untagged
@@ -14113,6 +14114,53 @@ MonoBehaviour:
   m_Events:
     m_Signals: []
     m_Events: []
+--- !u!114 &614645026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 614645023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 545322de4fabcc44e951f5fef7645fc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIScript
+  gameplayCamera: {fileID: 0}
+  cineCamera: {fileID: 0}
+  pauseUICamera: {fileID: 0}
+  helpUICamera: {fileID: 0}
+  creditsUICamera: {fileID: 0}
+  loseCamera: {fileID: 0}
+  slidePanel: {fileID: 0}
+  ExtraButton: {fileID: 0}
+  slideDuration: 0.4
+  hiddenPosition: {x: 0, y: 0}
+  shownPosition: {x: 0, y: 0}
+  helpPanel: {fileID: 0}
+  pausePanel: {fileID: 0}
+  creditsPanel: {fileID: 0}
+  losePanel: {fileID: 0}
+  playButton: {fileID: 0}
+  helpButton: {fileID: 0}
+  creditsButton: {fileID: 0}
+  quitButton: {fileID: 0}
+  resumeButton: {fileID: 0}
+  restartButton: {fileID: 0}
+  mainMenuButton: {fileID: 0}
+  helpBackButton: {fileID: 0}
+  CreditsBackButton: {fileID: 0}
+  retryButton: {fileID: 0}
+  loseHelpButton: {fileID: 0}
+  menuReturnButton: {fileID: 0}
+  GameplayUI: {fileID: 0}
+  LoadLevelOne: Level One
+  LoadLevelTwo: Level Two
+  LoadLevelThree: Level Three
+  playObject: {fileID: 0}
+  playMoveAmount: 2
+  playMoveDuration: 0.5
+  cameraMoveDuration: 0.5
 --- !u!1 &619664456
 GameObject:
   m_ObjectHideFlags: 0
@@ -40520,6 +40568,7 @@ GameObject:
   - component: {fileID: 1863452608}
   - component: {fileID: 1863452607}
   - component: {fileID: 1863452606}
+  - component: {fileID: 1863452610}
   m_Layer: 0
   m_Name: InterrogationCutscene
   m_TagString: Untagged
@@ -40634,6 +40683,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: -4.1, y: 6.65, z: 0.004}
+--- !u!114 &1863452610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863452605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 545322de4fabcc44e951f5fef7645fc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIScript
+  gameplayCamera: {fileID: 0}
+  cineCamera: {fileID: 0}
+  pauseUICamera: {fileID: 0}
+  helpUICamera: {fileID: 0}
+  creditsUICamera: {fileID: 0}
+  loseCamera: {fileID: 0}
+  slidePanel: {fileID: 0}
+  ExtraButton: {fileID: 0}
+  slideDuration: 0.4
+  hiddenPosition: {x: 0, y: 0}
+  shownPosition: {x: 0, y: 0}
+  helpPanel: {fileID: 0}
+  pausePanel: {fileID: 0}
+  creditsPanel: {fileID: 0}
+  losePanel: {fileID: 0}
+  playButton: {fileID: 0}
+  helpButton: {fileID: 0}
+  creditsButton: {fileID: 0}
+  quitButton: {fileID: 0}
+  resumeButton: {fileID: 0}
+  restartButton: {fileID: 0}
+  mainMenuButton: {fileID: 0}
+  helpBackButton: {fileID: 0}
+  CreditsBackButton: {fileID: 0}
+  retryButton: {fileID: 0}
+  loseHelpButton: {fileID: 0}
+  menuReturnButton: {fileID: 0}
+  GameplayUI: {fileID: 0}
+  LoadLevelOne: Level One
+  LoadLevelTwo: Level Two
+  LoadLevelThree: Level Three
+  playObject: {fileID: 0}
+  playMoveAmount: 2
+  playMoveDuration: 0.5
+  cameraMoveDuration: 0.5
 --- !u!1 &1866574844
 GameObject:
   m_ObjectHideFlags: 0
