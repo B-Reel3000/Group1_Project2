@@ -8,6 +8,10 @@ public class PlayerController : MonoBehaviour
     public Transform cameraPivot;          // Player/CameraPivot
     public GameObject reticle;             // UI reticle (only active while aiming)
 
+    [Header("Animation")]
+    public Animator animator;              // drag model Animator here
+    public string speedParam = "Speed";    // float in Animator
+
     [Header("Cinemachine Cameras (Optional)")]
     public Unity.Cinemachine.CinemachineCamera exploreCam;
     public Unity.Cinemachine.CinemachineCamera aimCam;
@@ -73,16 +77,18 @@ public class PlayerController : MonoBehaviour
         // Movement input (stored for FixedUpdate)
         moveInput = ReadMoveKeys();
 
+        // Update animator speed (Idle/Walk)
+        if (animator != null)
+            animator.SetFloat(speedParam, moveInput.magnitude);
+
         // Mouse look
         if (Mouse.current != null)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
 
-            // yaw rotates the player
             float yaw = delta.x * sensitivityX;
             transform.Rotate(0f, yaw, 0f, Space.World);
 
-            // pitch rotates the camera pivot
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
@@ -91,13 +97,11 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Horizontal movement only (gravity handles Y)
         Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
         Vector3 delta = dir * moveSpeed * Time.fixedDeltaTime;
 
-        // Step assist
         StepClimb(delta);
 
         Vector3 nextPos = rb.position + new Vector3(delta.x, 0f, delta.z);
@@ -110,15 +114,12 @@ public class PlayerController : MonoBehaviour
 
         Vector3 dir = horizontalDelta.normalized;
 
-        // Lower ray hits the step face
         Vector3 lowerOrigin = transform.position + Vector3.up * 0.05f;
-        // Upper ray checks if there's room above the step
         Vector3 upperOrigin = transform.position + Vector3.up * (stepHeight + 0.05f);
 
         bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit lower, stepCheckDistance, groundLayers);
         bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers);
 
-        // If we hit something low but not high, climb a bit
         if (lowerHit && !upperHit)
         {
             rb.position += Vector3.up * (stepUpSpeed * Time.fixedDeltaTime);
@@ -129,14 +130,12 @@ public class PlayerController : MonoBehaviour
     {
         isAiming = aiming;
 
-        // Cinemachine switching
         if (exploreCam != null)
             exploreCam.Priority = aiming ? aimPriority : explorePriority;
 
         if (aimCam != null)
             aimCam.Priority = aiming ? explorePriority : aimPriority;
 
-        // Reticle
         if (reticle != null)
             reticle.SetActive(aiming);
     }
