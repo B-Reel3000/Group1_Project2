@@ -29,5 +29,9 @@ public class Health : MonoBehaviour
         OnDeath?.Invoke(this, type);
 
         gameObject.SetActive(false);
+
+        EnemyAI ai = GetComponent<EnemyAI>();
+        if (ai != null)
+        ai.Die();
     }
 }

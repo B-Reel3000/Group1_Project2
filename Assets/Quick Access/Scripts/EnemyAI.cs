@@ -1,334 +1,191 @@
 using UnityEngine;
-using System.Collections;
+using UnityEngine.InputSystem;
 
-public class EnemyAI : MonoBehaviour
+[RequireComponent(typeof(Rigidbody), typeof(Collider))]
+public class PlayerController : MonoBehaviour
 {
-    public enum State { Chase, Orbit, Attack, Recover }
-    public State state;
+    [Header("References")]
+    public Transform cameraPivot;          // Player/CameraPivot
+    public GameObject reticle;             // UI reticle (only active while aiming)
 
-    [Header("Target")]
-    public Transform player; // drag Player here OR it will auto-find PlayerController at runtime
+    [Header("Animation")]
+    public Animator animator;              // drag model Animator here
+    public string speedParam = "Speed";
+    public string isAimingParam = "IsAiming";
 
-    [Header("Movement")]
-    public float moveSpeed = 3.5f;
-    public float turnSpeed = 540f;
+    [Header("Revolver")]
+    public GameObject revolverObject;      // child under hand bone, disabled by default
 
-    [Header("Distances")]
-    [Tooltip("When closer than this, stop chasing and start orbiting.")]
-    public float orbitEnterDistance = 4.0f;
+    [Header("Cinemachine Cameras (Optional)")]
+    public Unity.Cinemachine.CinemachineCamera exploreCam;
+    public Unity.Cinemachine.CinemachineCamera aimCam;
 
-    [Tooltip("When farther than this, stop orbiting and chase again. MUST be > orbitEnterDistance.")]
-    public float orbitExitDistance = 6.0f;
+    [Header("Move")]
+    public float moveSpeed = 5f;
 
-    [Tooltip("How close the enemy must be to begin an attack step-in.")]
-    public float attackDistance = 1.6f;
+    [Header("Steps")]
+    public float stepHeight = 0.35f;
+    public float stepCheckDistance = 0.40f;
+    public float stepUpSpeed = 6f;
+    public LayerMask groundLayers = ~0;
+    public float groundCheckDistance = 0.18f;
 
-    [Header("Orbit")]
-    public float orbitRadius = 3.5f;
-    public float orbitSpeed = 1.0f; // how fast they move around the circle
+    [Header("Look")]
+    public float sensitivityX = 0.12f;
+    public float sensitivityY = 0.10f;
+    public float minPitch = -35f;
+    public float maxPitch = 70f;
 
-    [Header("Attack")]
-    public float attackWindup = 0.25f;
-    public float attackCooldown = 1.25f;
-    public int damage = 1;
+    [Header("Aim")]
+    public int explorePriority = 20;
+    public int aimPriority = 10;
 
-    [Header("Anti-Dogpile: Attack Slots")]
-    [Range(1, 4)]
-    public int maxAttackers = 1;
+    Rigidbody rb;
+    Vector2 moveInput;
+    float pitch;
+    bool isAiming;
 
-    [Header("Anti-Dogpile: Personal Space")]
-    public float separationRadius = 2.2f;
-    public float separationStrength = 6.0f;
-    public LayerMask enemyLayers; // Put enemies on "Enemy" layer and assign it here
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
 
-    [Header("Anti-Thrash")]
-    public float stateMinTime = 0.6f;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        rb.freezeRotation = true;
 
-    [Header("Anti-Jitter (Separation Smoothing)")]
-    [Tooltip("How quickly the separation force adapts. Higher = snappier, lower = smoother.")]
-    public float separationSmooth = 10f;
-
-    [Tooltip("Max strength the separation can contribute to movement direction (prevents ping-pong).")]
-    public float separationMaxInfluence = 0.75f;
-
-    [Tooltip("Ignore tiny pushes (prevents micro-jitter when already spaced).")]
-    public float separationDeadZone = 0.02f;
-
-    [Header("Debug (optional)")]
-    public bool debugLogs = false;
-
-    int id;
-    float nextAttackTime;
-    float stateLockUntil;
-
-    float orbitAngle;
-    float orbitDrift;
-
-    Vector3 separationVel; // smoothed separation force
-
-    // Local attack-slot system (no manager needed)
-    static readonly System.Collections.Generic.HashSet<int> attackerIds =
-        new System.Collections.Generic.HashSet<int>();
+        rb.useGravity = true;
+        rb.isKinematic = false;
+    }
 
     void Start()
     {
-        id = GetInstanceID();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
-        // Auto-find player if not assigned
-        if (player == null)
-        {
-            var pc = FindFirstObjectByType<PlayerController>();
-            if (pc) player = pc.transform;
-        }
+        if (cameraPivot != null)
+            pitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
 
-        orbitAngle = Random.Range(0f, 360f);
-        orbitDrift = Random.Range(0.7f, 1.3f);
-
-        state = State.Chase;
-        LockState();
+        SetAim(false);
     }
 
     void Update()
     {
-        if (player == null) return;
+        if (cameraPivot == null) return;
 
-        float dist = Vector3.Distance(transform.position, player.position);
-
-        switch (state)
+        // Aim toggle
+        if (Keyboard.current != null)
         {
-            case State.Chase:
-                FacePlayer();
-                MoveToward(player.position);
+            if (Keyboard.current.rKey.wasPressedThisFrame) SetAim(true);
+            if (Keyboard.current.qKey.wasPressedThisFrame) SetAim(false);
+        }
 
-                if (dist <= orbitEnterDistance && CanChangeState())
-                {
-                    state = State.Orbit;
-                    LockState();
-                }
-                break;
+        // Movement input (stored for FixedUpdate)
+        moveInput = ReadMoveKeys();
 
-            case State.Orbit:
-                if (dist > orbitExitDistance && CanChangeState())
-                {
-                    ReleaseSlot();
-                    state = State.Chase;
-                    LockState();
-                    break;
-                }
+        // Animator speed (Idle/Walk)
+        if (animator != null)
+            animator.SetFloat(speedParam, moveInput.magnitude);
 
-                // Try to get an attack slot (only a few can attack)
-                if (Time.time >= nextAttackTime && dist <= orbitEnterDistance && CanChangeState())
-                {
-                    if (TryClaimSlot())
-                    {
-                        state = State.Attack;
-                        LockState();
-                        break;
-                    }
-                }
+        // Mouse look
+        if (Mouse.current != null)
+        {
+            Vector2 delta = Mouse.current.delta.ReadValue();
 
-                Orbit();
-                break;
+            float yaw = delta.x * sensitivityX;
+            transform.Rotate(0f, yaw, 0f, Space.World);
 
-            case State.Attack:
-                if (dist > orbitExitDistance)
-                {
-                    ReleaseSlot();
-                    state = State.Chase;
-                    LockState();
-                    break;
-                }
-
-                FacePlayer();
-
-                if (dist > attackDistance)
-                {
-                    MoveToward(player.position);
-                }
-                else
-                {
-                    // Do one attack, then recover/orbit
-                    StartCoroutine(DoAttack());
-                    state = State.Recover;
-                    LockState();
-                }
-                break;
-
-            case State.Recover:
-                // waiting for coroutine
-                break;
+            pitch -= delta.y * sensitivityY;
+            pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
     }
 
-    IEnumerator DoAttack()
+    void FixedUpdate()
     {
-        yield return new WaitForSeconds(attackWindup);
+        // Horizontal movement only (gravity handles Y)
+        Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
+        if (dir.sqrMagnitude > 1f) dir.Normalize();
 
-        // DAMAGE THE PLAYER HERE
-        if (player != null)
+        Vector3 horizontalDelta = dir * moveSpeed * Time.fixedDeltaTime;
+
+        // Step assist returns how much vertical lift to add this frame
+        float stepLift = StepClimbLift(horizontalDelta);
+
+        Vector3 nextPos = rb.position + new Vector3(horizontalDelta.x, stepLift, horizontalDelta.z);
+        rb.MovePosition(nextPos);
+    }
+
+    float StepClimbLift(Vector3 horizontalDelta)
+    {
+        if (horizontalDelta.sqrMagnitude < 0.00001f) return 0f;
+        if (!IsGrounded()) return 0f;
+
+        Vector3 dir = horizontalDelta.normalized;
+        Vector3 basePos = rb.position;
+
+        Vector3 lowerOrigin = basePos + Vector3.up * 0.05f;
+        Vector3 upperOrigin = basePos + Vector3.up * (stepHeight + 0.05f);
+
+        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
+        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
+
+        if (lowerHit && !upperHit && (low.point.y - basePos.y) <= (stepHeight + 0.05f))
         {
-            float dist = Vector3.Distance(transform.position, player.position);
-
-            // Small buffer so it still hits if they're barely in range
-            if (dist <= attackDistance + 0.35f)
-            {
-                PlayerHealth ph = player.GetComponent<PlayerHealth>();
-                if (ph != null)
-                {
-                    ph.TakeDamage(damage);
-                    if (debugLogs) Debug.Log($"{name} hit player for {damage}!");
-                }
-                else if (debugLogs)
-                {
-                    Debug.LogWarning($"{name} tried to damage player, but PlayerHealth not found.");
-                }
-            }
-            else if (debugLogs)
-            {
-                Debug.Log($"{name} attack whiffed (out of range).");
-            }
+            return stepUpSpeed * Time.fixedDeltaTime;
         }
 
-        nextAttackTime = Time.time + attackCooldown;
-
-        ReleaseSlot();
-        state = State.Orbit;
-        LockState();
+        return 0f;
     }
 
-    // -------- Movement helpers --------
-
-    void MoveToward(Vector3 target)
+    bool IsGrounded()
     {
-        Vector3 dir = target - transform.position;
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
-        dir.Normalize();
-
-        // Compute + smooth separation so it doesn't ping-pong
-        Vector3 sepTarget = ComputeSeparation();
-        separationVel = Vector3.Lerp(separationVel, sepTarget, separationSmooth * Time.deltaTime);
-
-        // Cap separation influence (prevents violent vibration)
-        Vector3 sepCapped = Vector3.ClampMagnitude(separationVel, separationMaxInfluence);
-
-        Vector3 final = dir + sepCapped;
-        final.y = 0f;
-
-        if (final.sqrMagnitude < 0.0001f)
-            final = dir;
-
-        final.Normalize();
-        transform.position += final * moveSpeed * Time.deltaTime;
+        Vector3 origin = rb.position + Vector3.up * 0.1f;
+        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
-    void FacePlayer()
+    void SetAim(bool aiming)
     {
-        Vector3 dir = (player.position - transform.position);
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
+        isAiming = aiming;
 
-        Quaternion targetRot = Quaternion.LookRotation(dir.normalized, Vector3.up);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, turnSpeed * Time.deltaTime);
+        // Cinemachine switching
+        if (exploreCam != null)
+            exploreCam.Priority = aiming ? aimPriority : explorePriority;
+
+        if (aimCam != null)
+            aimCam.Priority = aiming ? explorePriority : aimPriority;
+
+        // Reticle
+        if (reticle != null)
+            reticle.SetActive(aiming);
+
+        // Animator aim pose
+        if (animator != null)
+            animator.SetBool(isAimingParam, aiming);
+
+        // Gun show/hide
+        if (revolverObject != null)
+            revolverObject.SetActive(aiming);
     }
 
-    void Orbit()
+    Vector2 ReadMoveKeys()
     {
-        // Unique orbit per enemy, with drift to avoid syncing/clumping
-        orbitAngle += orbitSpeed * 60f * orbitDrift * Time.deltaTime;
-        float rad = orbitAngle * Mathf.Deg2Rad;
+        Vector2 v = Vector2.zero;
+        if (Keyboard.current == null) return v;
 
-        Vector3 offset = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * orbitRadius;
-        Vector3 orbitPos = player.position + offset;
+        if (Keyboard.current.wKey.isPressed) v.y += 1f;
+        if (Keyboard.current.sKey.isPressed) v.y -= 1f;
+        if (Keyboard.current.dKey.isPressed) v.x += 1f;
+        if (Keyboard.current.aKey.isPressed) v.x -= 1f;
 
-        FacePlayer();
-        MoveToward(orbitPos);
+        return v.normalized;
     }
 
-    Vector3 ComputeSeparation()
+    float NormalizeAngle(float angle)
     {
-        // If no layer mask selected, do nothing
-        if (enemyLayers.value == 0) return Vector3.zero;
-
-        Collider[] nearby = Physics.OverlapSphere(transform.position, separationRadius, enemyLayers);
-        if (nearby == null || nearby.Length == 0) return Vector3.zero;
-
-        Vector3 push = Vector3.zero;
-        int count = 0;
-
-        foreach (var col in nearby)
-        {
-            if (col == null) continue;
-
-            Transform t = col.transform;
-
-            // skip self (handles children)
-            if (t == transform || t.IsChildOf(transform)) continue;
-
-            Vector3 away = transform.position - t.position;
-            away.y = 0f;
-
-            float dist = away.magnitude;
-            if (dist < 0.001f) continue;
-
-            // stronger when close
-            push += away.normalized / dist;
-            count++;
-        }
-
-        if (count == 0) return Vector3.zero;
-
-        push /= count;
-
-        // dead zone prevents micro jitter
-        if (push.sqrMagnitude < separationDeadZone)
-            return Vector3.zero;
-
-        return push.normalized * separationStrength;
+        while (angle > 180f) angle -= 360f;
+        while (angle < -180f) angle += 360f;
+        return angle;
     }
 
-    // -------- Attack slot helpers --------
-
-    bool TryClaimSlot()
-    {
-        if (attackerIds.Contains(id)) return true;
-        if (attackerIds.Count >= maxAttackers) return false;
-
-        attackerIds.Add(id);
-        return true;
-    }
-
-    void ReleaseSlot()
-    {
-        attackerIds.Remove(id);
-    }
-
-    void OnDisable()
-    {
-        ReleaseSlot();
-    }
-
-    // -------- State anti-thrash --------
-
-    bool CanChangeState() => Time.time >= stateLockUntil;
-    void LockState() => stateLockUntil = Time.time + stateMinTime;
-
-    // Optional: visualize in Scene view
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.white;
-        Gizmos.DrawWireSphere(transform.position, separationRadius);
-
-        if (player != null)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(player.position, orbitEnterDistance);
-
-            Gizmos.color = Color.blue;
-            Gizmos.DrawWireSphere(player.position, orbitExitDistance);
-
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(player.position, attackDistance);
-        }
-    }
+    public bool IsAiming => isAiming;
 }

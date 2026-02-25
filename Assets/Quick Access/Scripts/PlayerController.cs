@@ -11,7 +11,11 @@ public class PlayerController : MonoBehaviour
 
     [Header("Animation")]
     public Animator animator;              // drag model Animator here
-    public string speedParam = "Speed";    // float in Animator
+    public string speedParam = "Speed";
+    public string isAimingParam = "IsAiming";
+
+    [Header("Revolver")]
+    public GameObject revolverObject;      // child under hand bone, disabled by default
 
     [Header("Cinemachine Cameras (Optional)")]
     public Unity.Cinemachine.CinemachineCamera exploreCam;
@@ -79,7 +83,7 @@ public class PlayerController : MonoBehaviour
         // Movement input (stored for FixedUpdate)
         moveInput = ReadMoveKeys();
 
-        // Update animator speed (Idle/Walk)
+        // Animator speed (Idle/Walk)
         if (animator != null)
             animator.SetFloat(speedParam, moveInput.magnitude);
 
@@ -103,44 +107,41 @@ public class PlayerController : MonoBehaviour
         Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
-        Vector3 delta = dir * moveSpeed * Time.fixedDeltaTime;
+        Vector3 horizontalDelta = dir * moveSpeed * Time.fixedDeltaTime;
 
-        // Step assist (safer)
-        StepClimb(delta);
+        // Step assist returns how much vertical lift to add this frame
+        float stepLift = StepClimbLift(horizontalDelta);
 
-        Vector3 nextPos = rb.position + new Vector3(delta.x, 0f, delta.z);
+        Vector3 nextPos = rb.position + new Vector3(horizontalDelta.x, stepLift, horizontalDelta.z);
         rb.MovePosition(nextPos);
     }
 
-    void StepClimb(Vector3 horizontalDelta)
+    float StepClimbLift(Vector3 horizontalDelta)
     {
-        if (horizontalDelta.sqrMagnitude < 0.00001f) return;
-
-        // Only attempt stepping while grounded (prevents "bunny-hop" on flat floors)
-        if (!IsGrounded()) return;
+        if (horizontalDelta.sqrMagnitude < 0.00001f) return 0f;
+        if (!IsGrounded()) return 0f;
 
         Vector3 dir = horizontalDelta.normalized;
-
-        // Use rb.position for stability
         Vector3 basePos = rb.position;
 
         Vector3 lowerOrigin = basePos + Vector3.up * 0.05f;
         Vector3 upperOrigin = basePos + Vector3.up * (stepHeight + 0.05f);
 
-        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers);
-        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers);
+        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
+        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
 
-        // Only climb if the thing we hit is within step height
         if (lowerHit && !upperHit && (low.point.y - basePos.y) <= (stepHeight + 0.05f))
         {
-            rb.position += Vector3.up * (stepUpSpeed * Time.fixedDeltaTime);
+            return stepUpSpeed * Time.fixedDeltaTime;
         }
+
+        return 0f;
     }
 
     bool IsGrounded()
     {
         Vector3 origin = rb.position + Vector3.up * 0.1f;
-        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers);
+        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
     void SetAim(bool aiming)
@@ -157,6 +158,14 @@ public class PlayerController : MonoBehaviour
         // Reticle
         if (reticle != null)
             reticle.SetActive(aiming);
+
+        // Animator aim pose
+        if (animator != null)
+            animator.SetBool(isAimingParam, aiming);
+
+        // Gun show/hide
+        if (revolverObject != null)
+            revolverObject.SetActive(aiming);
     }
 
     Vector2 ReadMoveKeys()
