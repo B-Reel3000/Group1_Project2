@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -24,6 +25,7 @@ public class PlayerController : MonoBehaviour
     public float stepCheckDistance = 0.40f;
     public float stepUpSpeed = 6f;
     public LayerMask groundLayers = ~0;
+    public float groundCheckDistance = 0.18f;
 
     [Header("Look")]
     public float sensitivityX = 0.12f;
@@ -97,11 +99,13 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        // Horizontal movement only (gravity handles Y)
         Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
         Vector3 delta = dir * moveSpeed * Time.fixedDeltaTime;
 
+        // Step assist (safer)
         StepClimb(delta);
 
         Vector3 nextPos = rb.position + new Vector3(delta.x, 0f, delta.z);
@@ -112,30 +116,45 @@ public class PlayerController : MonoBehaviour
     {
         if (horizontalDelta.sqrMagnitude < 0.00001f) return;
 
+        // Only attempt stepping while grounded (prevents "bunny-hop" on flat floors)
+        if (!IsGrounded()) return;
+
         Vector3 dir = horizontalDelta.normalized;
 
-        Vector3 lowerOrigin = transform.position + Vector3.up * 0.05f;
-        Vector3 upperOrigin = transform.position + Vector3.up * (stepHeight + 0.05f);
+        // Use rb.position for stability
+        Vector3 basePos = rb.position;
 
-        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit lower, stepCheckDistance, groundLayers);
+        Vector3 lowerOrigin = basePos + Vector3.up * 0.05f;
+        Vector3 upperOrigin = basePos + Vector3.up * (stepHeight + 0.05f);
+
+        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers);
         bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers);
 
-        if (lowerHit && !upperHit)
+        // Only climb if the thing we hit is within step height
+        if (lowerHit && !upperHit && (low.point.y - basePos.y) <= (stepHeight + 0.05f))
         {
             rb.position += Vector3.up * (stepUpSpeed * Time.fixedDeltaTime);
         }
+    }
+
+    bool IsGrounded()
+    {
+        Vector3 origin = rb.position + Vector3.up * 0.1f;
+        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers);
     }
 
     void SetAim(bool aiming)
     {
         isAiming = aiming;
 
+        // Cinemachine switching
         if (exploreCam != null)
             exploreCam.Priority = aiming ? aimPriority : explorePriority;
 
         if (aimCam != null)
             aimCam.Priority = aiming ? explorePriority : aimPriority;
 
+        // Reticle
         if (reticle != null)
             reticle.SetActive(aiming);
     }

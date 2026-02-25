@@ -1,3 +1,4 @@
+// PlayerHealth.cs
 using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
@@ -10,21 +11,30 @@ public class PlayerHealth : MonoBehaviour
     public string hitTrigger = "Hit";  // trigger in Animator
     public string deadBool = "Dead";   // bool in Animator
 
+    [Header("Feel")]
+    [Tooltip("Minimum time between taking damage (prevents hit spam).")]
+    public float damageCooldown = 0.6f;
+
     bool isDead;
+    float nextDamageTime;
 
     void Awake()
     {
         currentHealth = maxHealth;
         isDead = false;
+        nextDamageTime = 0f;
 
-        // Optional: ensure we start alive if you reuse prefab
-        if (animator != null) animator.SetBool(deadBool, false);
+        if (animator != null)
+            animator.SetBool(deadBool, false);
     }
 
     public void TakeDamage(int amount)
     {
         if (isDead) return;
         if (amount <= 0) return;
+
+        if (Time.time < nextDamageTime) return;
+        nextDamageTime = Time.time + damageCooldown;
 
         int newHealth = Mathf.Clamp(currentHealth - amount, 0, maxHealth);
 
@@ -36,7 +46,6 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
-        // Non-lethal hit
         currentHealth = newHealth;
 
         if (animator != null)
@@ -52,6 +61,18 @@ public class PlayerHealth : MonoBehaviour
 
         if (animator != null)
             animator.SetBool(deadBool, true);
+
+        // Stop physics so the KO pose doesn't "hover" or slide
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.enabled = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+        }
 
         if (GameManager.Instance != null)
             GameManager.Instance.Lose();
