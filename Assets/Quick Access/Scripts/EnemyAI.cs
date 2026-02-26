@@ -1,191 +1,89 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.AI;
 
-[RequireComponent(typeof(Rigidbody), typeof(Collider))]
-public class PlayerController : MonoBehaviour
+[RequireComponent(typeof(NavMeshAgent))]
+public class EnemyAI : MonoBehaviour
 {
-    [Header("References")]
-    public Transform cameraPivot;          // Player/CameraPivot
-    public GameObject reticle;             // UI reticle (only active while aiming)
+    public Transform player;
+    public Animator animator;
+    public Health health;
 
-    [Header("Animation")]
-    public Animator animator;              // drag model Animator here
-    public string speedParam = "Speed";
-    public string isAimingParam = "IsAiming";
+    [Header("Combat")]
+    public float attackRange = 2.2f;
+    public float attackCooldown = 1.2f;
+    public int damage = 1;
 
-    [Header("Revolver")]
-    public GameObject revolverObject;      // child under hand bone, disabled by default
-
-    [Header("Cinemachine Cameras (Optional)")]
-    public Unity.Cinemachine.CinemachineCamera exploreCam;
-    public Unity.Cinemachine.CinemachineCamera aimCam;
-
-    [Header("Move")]
-    public float moveSpeed = 5f;
-
-    [Header("Steps")]
-    public float stepHeight = 0.35f;
-    public float stepCheckDistance = 0.40f;
-    public float stepUpSpeed = 6f;
-    public LayerMask groundLayers = ~0;
-    public float groundCheckDistance = 0.18f;
-
-    [Header("Look")]
-    public float sensitivityX = 0.12f;
-    public float sensitivityY = 0.10f;
-    public float minPitch = -35f;
-    public float maxPitch = 70f;
-
-    [Header("Aim")]
-    public int explorePriority = 20;
-    public int aimPriority = 10;
-
-    Rigidbody rb;
-    Vector2 moveInput;
-    float pitch;
-    bool isAiming;
+    float nextAttackTime;
+    NavMeshAgent agent;
+    bool dead;
 
     void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-        rb.freezeRotation = true;
-
-        rb.useGravity = true;
-        rb.isKinematic = false;
-    }
-
-    void Start()
-    {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        if (cameraPivot != null)
-            pitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
-
-        SetAim(false);
+        agent = GetComponent<NavMeshAgent>();
     }
 
     void Update()
     {
-        if (cameraPivot == null) return;
+        if (dead || player == null) return;
 
-        // Aim toggle
-        if (Keyboard.current != null)
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // movement
+        if (dist > attackRange)
         {
-            if (Keyboard.current.rKey.wasPressedThisFrame) SetAim(true);
-            if (Keyboard.current.qKey.wasPressedThisFrame) SetAim(false);
+            agent.isStopped = false;
+            agent.SetDestination(player.position);
+            animator.SetFloat("Speed", agent.velocity.magnitude);
         }
-
-        // Movement input (stored for FixedUpdate)
-        moveInput = ReadMoveKeys();
-
-        // Animator speed (Idle/Walk)
-        if (animator != null)
-            animator.SetFloat(speedParam, moveInput.magnitude);
-
-        // Mouse look
-        if (Mouse.current != null)
+        else
         {
-            Vector2 delta = Mouse.current.delta.ReadValue();
+            agent.isStopped = true;
+            animator.SetFloat("Speed", 0f);
 
-            float yaw = delta.x * sensitivityX;
-            transform.Rotate(0f, yaw, 0f, Space.World);
+            // face player
+            Vector3 dir = (player.position - transform.position);
+            dir.y = 0f;
+            transform.rotation = Quaternion.Slerp(transform.rotation,
+                                                   Quaternion.LookRotation(dir),
+                                                   Time.deltaTime * 8f);
 
-            pitch -= delta.y * sensitivityY;
-            pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
-            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+            TryAttack();
         }
     }
 
-    void FixedUpdate()
+    void TryAttack()
     {
-        // Horizontal movement only (gravity handles Y)
-        Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
-        if (dir.sqrMagnitude > 1f) dir.Normalize();
+        if (Time.time < nextAttackTime) return;
 
-        Vector3 horizontalDelta = dir * moveSpeed * Time.fixedDeltaTime;
+        nextAttackTime = Time.time + attackCooldown;
 
-        // Step assist returns how much vertical lift to add this frame
-        float stepLift = StepClimbLift(horizontalDelta);
-
-        Vector3 nextPos = rb.position + new Vector3(horizontalDelta.x, stepLift, horizontalDelta.z);
-        rb.MovePosition(nextPos);
+        animator.SetTrigger("Punch");
+        Invoke(nameof(DealDamage), 0.35f); // timing of punch impact
     }
 
-    float StepClimbLift(Vector3 horizontalDelta)
+    void DealDamage()
     {
-        if (horizontalDelta.sqrMagnitude < 0.00001f) return 0f;
-        if (!IsGrounded()) return 0f;
+        if (dead) return;
+        if (player == null) return;
 
-        Vector3 dir = horizontalDelta.normalized;
-        Vector3 basePos = rb.position;
-
-        Vector3 lowerOrigin = basePos + Vector3.up * 0.05f;
-        Vector3 upperOrigin = basePos + Vector3.up * (stepHeight + 0.05f);
-
-        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
-        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
-
-        if (lowerHit && !upperHit && (low.point.y - basePos.y) <= (stepHeight + 0.05f))
+        if (Vector3.Distance(transform.position, player.position) <= attackRange + 0.3f)
         {
-            return stepUpSpeed * Time.fixedDeltaTime;
+            PlayerHealth ph = player.GetComponent<PlayerHealth>();
+            if (ph != null)
+                ph.TakeDamage(damage);
         }
-
-        return 0f;
     }
 
-    bool IsGrounded()
+    public void Die()
     {
-        Vector3 origin = rb.position + Vector3.up * 0.1f;
-        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
+        if (dead) return;
+        dead = true;
+
+        agent.isStopped = true;
+        agent.enabled = false;
+
+        animator.SetBool("Dead", true);
+
+        Destroy(gameObject, 3f); // wait for animation
     }
-
-    void SetAim(bool aiming)
-    {
-        isAiming = aiming;
-
-        // Cinemachine switching
-        if (exploreCam != null)
-            exploreCam.Priority = aiming ? aimPriority : explorePriority;
-
-        if (aimCam != null)
-            aimCam.Priority = aiming ? explorePriority : aimPriority;
-
-        // Reticle
-        if (reticle != null)
-            reticle.SetActive(aiming);
-
-        // Animator aim pose
-        if (animator != null)
-            animator.SetBool(isAimingParam, aiming);
-
-        // Gun show/hide
-        if (revolverObject != null)
-            revolverObject.SetActive(aiming);
-    }
-
-    Vector2 ReadMoveKeys()
-    {
-        Vector2 v = Vector2.zero;
-        if (Keyboard.current == null) return v;
-
-        if (Keyboard.current.wKey.isPressed) v.y += 1f;
-        if (Keyboard.current.sKey.isPressed) v.y -= 1f;
-        if (Keyboard.current.dKey.isPressed) v.x += 1f;
-        if (Keyboard.current.aKey.isPressed) v.x -= 1f;
-
-        return v.normalized;
-    }
-
-    float NormalizeAngle(float angle)
-    {
-        while (angle > 180f) angle -= 360f;
-        while (angle < -180f) angle += 360f;
-        return angle;
-    }
-
-    public bool IsAiming => isAiming;
 }

@@ -67,7 +67,7 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
     }
 
-    void Win()
+    public void Win()
     {
         if (gameOver) return;
         gameOver = true;
