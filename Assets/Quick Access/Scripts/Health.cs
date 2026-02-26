@@ -14,11 +14,19 @@ public class Health : MonoBehaviour
     public string hitTrigger = "Hit";
     public string deadBool = "Dead";
 
-    [Header("Death")]
-    public bool isPlayer = false;   // CHECK this on the player only
-    public float destroyDelay = 3f; // enemy disappears after death anim
+    [Header("Role")]
+    public bool isPlayer = false; // only true on player
 
-    // ✅ WaveManager (and anything else) can subscribe to this
+    [Header("Enemy Death Timing")]
+    public float destroyDelay = 2.0f; // time for KO to play before disappearing
+
+    [Header("Enemy Death Ground Snap")]
+    public LayerMask groundLayers = ~0;
+    public float snapRayStartHeight = 1.5f;
+    public float snapRayLength = 6f;
+    public float groundOffset = 0.02f;
+
+    // WaveManager uses this
     public event Action<Health, DamageType> OnDeath;
 
     bool dead;
@@ -42,7 +50,6 @@ public class Health : MonoBehaviour
 
         currentHealth -= amount;
 
-        // Hit reaction only if still alive
         if (currentHealth > 0)
         {
             if (animator != null)
@@ -60,17 +67,15 @@ public class Health : MonoBehaviour
         if (dead) return;
         dead = true;
 
-        // play death animation
         if (animator != null)
             animator.SetBool(deadBool, true);
 
-        // ✅ notify listeners (WaveManager)
+        // Notify WaveManager FIRST
         OnDeath?.Invoke(this, type);
 
-        // PLAYER
         if (isPlayer)
         {
-            // Disable controls (optional)
+            // optional: disable controls
             PlayerController pc = GetComponent<PlayerController>();
             if (pc != null) pc.enabled = false;
 
@@ -86,11 +91,43 @@ public class Health : MonoBehaviour
             return;
         }
 
-        // ENEMY: let AI handle stopping, etc.
-        EnemyAI ai = GetComponent<EnemyAI>();
-        if (ai != null)
-            ai.Die();
+        // ENEMY cleanup so KO lies correctly:
+        // 1) stop nav + physics interference
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.enabled = false;
+        }
 
+        var col = GetComponent<Collider>();
+        if (col != null) col.enabled = false;
+
+        var rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        // 2) snap root to ground so they don't "hover"
+        SnapToGround();
+
+        // 3) Destroy after KO has time to show
         Destroy(gameObject, destroyDelay);
+    }
+
+    void SnapToGround()
+    {
+        Vector3 origin = transform.position + Vector3.up * snapRayStartHeight;
+
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, snapRayLength, groundLayers, QueryTriggerInteraction.Ignore))
+        {
+            Vector3 p = transform.position;
+            p.y = hit.point.y + groundOffset;
+            transform.position = p;
+        }
     }
 }

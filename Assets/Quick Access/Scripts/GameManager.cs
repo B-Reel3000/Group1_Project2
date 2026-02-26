@@ -2,78 +2,64 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
+    public static GameManager Instance;
 
     [Header("UI")]
-    public GameObject winScreen;
-    public GameObject loseScreen;
+    public GameObject gameplayCanvas;   // HUD (health/ammo/reticle canvas)
+    public GameObject winPanel;
+    public GameObject losePanel;
 
-    [Header("Enemy Tracking")]
-    public int enemiesAlive;
-
-    bool gameOver;
+    bool gameEnded = false;
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
     }
 
-    void Start()
-    {
-        if (winScreen) winScreen.SetActive(false);
-        if (loseScreen) loseScreen.SetActive(false);
-
-        // Auto-count enemies that have Health + Enemy tag (or just Health)
-        // Best: tag all enemies as "Enemy"
-        var allHealth = FindObjectsByType<Health>(FindObjectsSortMode.None);
-        enemiesAlive = 0;
-
-        foreach (var h in allHealth)
-        {
-            // If you want ONLY enemies counted, use a tag check:
-            // if (!h.CompareTag("Enemy")) continue;
-
-            // More robust: count anything with EnemyAI / EnemyAI_Navmesh
-            if (h.GetComponent<EnemyAI>() == null && h.GetComponent<EnemyAI_Navmesh>() == null)
-                continue;
-
-            enemiesAlive++;
-            h.OnDeath -= OnEnemyDied; // prevent double subscribe
-            h.OnDeath += OnEnemyDied;
-        }
-
-        Debug.Log($"Enemies alive: {enemiesAlive}");
-    }
-
-    void OnEnemyDied(Health who, Health.DamageType type)
-    {
-        if (gameOver) return;
-
-        enemiesAlive--;
-        if (enemiesAlive <= 0)
-        {
-            Win();
-        }
-    }
-
-    public void Lose()
-    {
-        if (gameOver) return;
-        gameOver = true;
-
-        if (loseScreen) loseScreen.SetActive(true);
-        Debug.Log("LOSE!");
-        Time.timeScale = 0f;
-    }
-
+    // ---------- WIN ----------
     public void Win()
     {
-        if (gameOver) return;
-        gameOver = true;
+        if (gameEnded) return;
+        gameEnded = true;
 
-        if (winScreen) winScreen.SetActive(true);
-        Debug.Log("WIN!");
+        Debug.Log("PLAYER WIN");
+
+        // Stop gameplay
         Time.timeScale = 0f;
+
+        // Hide HUD
+        if (gameplayCanvas != null)
+            gameplayCanvas.SetActive(false);
+
+        // Show win UI
+        if (winPanel != null)
+            winPanel.SetActive(true);
+
+        // Cursor back
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    // ---------- LOSE ----------
+    public void Lose()
+    {
+        if (gameEnded) return;
+        gameEnded = true;
+
+        Debug.Log("PLAYER LOSE");
+
+        Time.timeScale = 0f;
+
+        if (gameplayCanvas != null)
+            gameplayCanvas.SetActive(false);
+
+        if (losePanel != null)
+            losePanel.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 }
