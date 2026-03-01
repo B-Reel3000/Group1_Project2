@@ -1,38 +1,73 @@
-// MeleeHitbox.cs  (optional debug added)
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class MeleeHitbox : MonoBehaviour
 {
-    [Header("Hitbox")]
+    [Header("Owner")]
+    public PlayerMeleeEvents owner;          // drag PlayerMeleeEvents here
+
+    [Header("Hit Settings")]
     public int damage = 1;
-    public string enemyTag = "Enemy";
+    public float hitCooldownPerTarget = 0.0f; // usually 0, because we use per-swing gating
 
-    [Header("Debug")]
-    public bool debugLogs = false;
+    // Per swing: prevents multi-hits on same enemy during one punch
+    HashSet<Health> hitThisSwing = new HashSet<Health>();
 
-    [HideInInspector] public bool active;
+    // Optional: if you want extra anti-spam, store time per target
+    Dictionary<Health, float> lastHitTime = new Dictionary<Health, float>();
 
-    HashSet<Health> alreadyHit = new HashSet<Health>();
-
-    public void ResetHits()
+    void Reset()
     {
-        alreadyHit.Clear();
+        // Auto-disable trigger damage at start
+        if (owner == null) owner = GetComponentInParent<PlayerMeleeEvents>();
+    }
+
+    public void BeginSwing()
+    {
+        hitThisSwing.Clear();
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (!active) return;
-        if (!other.CompareTag(enemyTag)) return;
+        TryHit(other);
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        // Helps if fists start inside collider or move fast
+        TryHit(other);
+    }
+
+    void TryHit(Collider other)
+    {
+        if (owner == null) return;
+        if (!owner.CanDealDamage) return;     // only during active window
+        if (other == null) return;
+
+        // Don’t hit yourself
+        if (other.GetComponentInParent<PlayerController>() != null) return;
 
         Health h = other.GetComponentInParent<Health>();
         if (h == null) return;
 
-        if (alreadyHit.Contains(h)) return;
-        alreadyHit.Add(h);
+        // Don’t hit same target multiple times in one swing
+        if (hitThisSwing.Contains(h)) return;
 
-        if (debugLogs) Debug.Log("HIT ENEMY: " + other.name);
+        // Optional extra cooldown per target
+        if (hitCooldownPerTarget > 0f)
+        {
+            if (lastHitTime.TryGetValue(h, out float t) && Time.time < t + hitCooldownPerTarget)
+                return;
 
+            lastHitTime[h] = Time.time;
+        }
+
+        hitThisSwing.Add(h);
+
+        // Deal damage
         h.TakeDamage(damage, Health.DamageType.Melee);
+
+        // Tell owner we landed (optional, for SFX/camera shake/etc.)
+        owner.OnLandedHit(h);
     }
 }
