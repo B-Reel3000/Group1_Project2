@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -6,30 +5,27 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [Header("References")]
-    public Transform cameraPivot;          // Player/CameraPivot
-    public GameObject reticle;             // UI reticle (only active while aiming)
+    public Transform cameraPivot;
+    public GameObject reticle;
 
     [Header("Animation")]
-    public Animator animator;              // drag model Animator here
+    public Animator animator;
     public string speedParam = "Speed";
     public string isAimingParam = "IsAiming";
 
     [Header("Revolver")]
-    public GameObject revolverObject;      // child under hand bone, disabled by default
+    public GameObject revolverObject;
 
-    [Header("Cinemachine Cameras (Optional)")]
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip hammerCockClip;
+
+    [Header("Cinemachine Cameras")]
     public Unity.Cinemachine.CinemachineCamera exploreCam;
     public Unity.Cinemachine.CinemachineCamera aimCam;
 
     [Header("Move")]
     public float moveSpeed = 5f;
-
-    [Header("Steps")]
-    public float stepHeight = 0.35f;
-    public float stepCheckDistance = 0.40f;
-    public float stepUpSpeed = 6f;
-    public LayerMask groundLayers = ~0;
-    public float groundCheckDistance = 0.18f;
 
     [Header("Look")]
     public float sensitivityX = 0.12f;
@@ -49,13 +45,11 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
         rb.freezeRotation = true;
-
         rb.useGravity = true;
-        rb.isKinematic = false;
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     void Start()
@@ -63,37 +57,30 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        if (cameraPivot != null)
-            pitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
-
         SetAim(false);
     }
 
     void Update()
     {
-        if (cameraPivot == null) return;
-
-        // Aim toggle
         if (Keyboard.current != null)
         {
-            if (Keyboard.current.rKey.wasPressedThisFrame) SetAim(true);
-            if (Keyboard.current.qKey.wasPressedThisFrame) SetAim(false);
+            if (Keyboard.current.rKey.wasPressedThisFrame)
+                SetAim(true);
+
+            if (Keyboard.current.qKey.wasPressedThisFrame)
+                SetAim(false);
         }
 
-        // Movement input (stored for FixedUpdate)
         moveInput = ReadMoveKeys();
 
-        // Animator speed (Idle/Walk)
         if (animator != null)
             animator.SetFloat(speedParam, moveInput.magnitude);
 
-        // Mouse look
         if (Mouse.current != null)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
 
-            float yaw = delta.x * sensitivityX;
-            transform.Rotate(0f, yaw, 0f, Space.World);
+            transform.Rotate(0f, delta.x * sensitivityX, 0f);
 
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
@@ -103,67 +90,35 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Horizontal movement only (gravity handles Y)
-        Vector3 dir = (transform.forward * moveInput.y + transform.right * moveInput.x);
+        Vector3 dir = transform.forward * moveInput.y + transform.right * moveInput.x;
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
-        Vector3 horizontalDelta = dir * moveSpeed * Time.fixedDeltaTime;
-
-        // Step assist returns how much vertical lift to add this frame
-        float stepLift = StepClimbLift(horizontalDelta);
-
-        Vector3 nextPos = rb.position + new Vector3(horizontalDelta.x, stepLift, horizontalDelta.z);
+        Vector3 nextPos = rb.position + dir * moveSpeed * Time.fixedDeltaTime;
         rb.MovePosition(nextPos);
-    }
-
-    float StepClimbLift(Vector3 horizontalDelta)
-    {
-        if (horizontalDelta.sqrMagnitude < 0.00001f) return 0f;
-        if (!IsGrounded()) return 0f;
-
-        Vector3 dir = horizontalDelta.normalized;
-        Vector3 basePos = rb.position;
-
-        Vector3 lowerOrigin = basePos + Vector3.up * 0.05f;
-        Vector3 upperOrigin = basePos + Vector3.up * (stepHeight + 0.05f);
-
-        bool lowerHit = Physics.Raycast(lowerOrigin, dir, out RaycastHit low, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
-        bool upperHit = Physics.Raycast(upperOrigin, dir, stepCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
-
-        if (lowerHit && !upperHit && (low.point.y - basePos.y) <= (stepHeight + 0.05f))
-        {
-            return stepUpSpeed * Time.fixedDeltaTime;
-        }
-
-        return 0f;
-    }
-
-    bool IsGrounded()
-    {
-        Vector3 origin = rb.position + Vector3.up * 0.1f;
-        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
     void SetAim(bool aiming)
     {
+        if (isAiming == aiming) return;
+
         isAiming = aiming;
 
-        // Cinemachine switching
+        // Hammer cock sound ONLY when entering aim
+        if (aiming && audioSource != null && hammerCockClip != null)
+            audioSource.PlayOneShot(hammerCockClip);
+
         if (exploreCam != null)
             exploreCam.Priority = aiming ? aimPriority : explorePriority;
 
         if (aimCam != null)
             aimCam.Priority = aiming ? explorePriority : aimPriority;
 
-        // Reticle
         if (reticle != null)
             reticle.SetActive(aiming);
 
-        // Animator aim pose
         if (animator != null)
             animator.SetBool(isAimingParam, aiming);
 
-        // Gun show/hide
         if (revolverObject != null)
             revolverObject.SetActive(aiming);
     }
@@ -179,13 +134,6 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current.aKey.isPressed) v.x -= 1f;
 
         return v.normalized;
-    }
-
-    float NormalizeAngle(float angle)
-    {
-        while (angle > 180f) angle -= 360f;
-        while (angle < -180f) angle += 360f;
-        return angle;
     }
 
     public bool IsAiming => isAiming;

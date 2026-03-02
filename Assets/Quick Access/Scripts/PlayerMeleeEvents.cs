@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections;
 
 public class PlayerMeleeEvents : MonoBehaviour
 {
@@ -7,74 +8,72 @@ public class PlayerMeleeEvents : MonoBehaviour
     public PlayerController controller;
     public Animator animator;
 
-    [Header("Animator Params")]
-    public string punchTrigger = "Punch"; // trigger
-    public string speedParam = "Speed";   // optional (already in your controller)
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip whooshClip;
+
+    [Header("Animator")]
+    public string punchTrigger = "Punch";
 
     [Header("Timing")]
-    public float attackCooldown = 0.45f;
+    public float attackCooldown = 0.5f;
+    public float damageOnDelay = 0.10f;
+    public float damageActiveTime = 0.18f;
 
-    [Header("State")]
-    public bool CanDealDamage { get; private set; }
-
-    float nextAttackTime;
-
-    // Assign both fists in Inspector (each has MeleeHitbox)
     [Header("Hitboxes")]
     public MeleeHitbox leftFist;
     public MeleeHitbox rightFist;
+
+    public bool CanDealDamage { get; private set; }
+
+    float nextAttackTime;
+    Coroutine windowRoutine;
 
     void Awake()
     {
         if (controller == null) controller = GetComponent<PlayerController>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
     {
-        if (controller == null) return;
+        if (controller != null && controller.IsAiming) return;
+        if (Mouse.current == null) return;
 
-        // Only punch in melee mode (not aiming)
-        if (controller.IsAiming) return;
-
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && Time.time >= nextAttackTime)
+        if (Mouse.current.leftButton.wasPressedThisFrame && Time.time >= nextAttackTime)
         {
             nextAttackTime = Time.time + attackCooldown;
 
-            // Start punch
+            // PLAY WHOOSH
+            if (audioSource != null && whooshClip != null)
+                audioSource.PlayOneShot(whooshClip);
+
+            // animation
             if (animator != null)
                 animator.SetTrigger(punchTrigger);
 
-            // Prepare hitboxes for a new swing
             if (leftFist != null) leftFist.BeginSwing();
             if (rightFist != null) rightFist.BeginSwing();
+
+            if (windowRoutine != null) StopCoroutine(windowRoutine);
+            windowRoutine = StartCoroutine(DamageWindow());
         }
     }
 
-    // --- Animation Events call these ---
-
-    // Call this at the moment the fist should start hurting
-    public void AE_DamageOn()
+    IEnumerator DamageWindow()
     {
+        CanDealDamage = false;
+        yield return new WaitForSeconds(damageOnDelay);
+
         CanDealDamage = true;
-    }
+        yield return new WaitForSeconds(damageActiveTime);
 
-    // Call this right after the punch impact frames end
-    public void AE_DamageOff()
-    {
         CanDealDamage = false;
     }
 
-    // Optional: if you want to guarantee off at end of clip
-    public void AE_EndSwing()
-    {
-        CanDealDamage = false;
-    }
-
-    // Optional callback for feedback
     public void OnLandedHit(Health target)
     {
-        // Add SFX, camera shake, hit-stop, UI, etc later
-        // Debug.Log("Punched: " + target.name);
+        // Impact handled in hitbox
     }
 }

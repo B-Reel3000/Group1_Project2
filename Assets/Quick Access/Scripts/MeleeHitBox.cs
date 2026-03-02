@@ -4,22 +4,21 @@ using UnityEngine;
 public class MeleeHitbox : MonoBehaviour
 {
     [Header("Owner")]
-    public PlayerMeleeEvents owner;          // drag PlayerMeleeEvents here
+    public PlayerMeleeEvents owner;
 
-    [Header("Hit Settings")]
+    [Header("Damage")]
     public int damage = 1;
-    public float hitCooldownPerTarget = 0.0f; // usually 0, because we use per-swing gating
 
-    // Per swing: prevents multi-hits on same enemy during one punch
+    [Header("Audio")]
+    public AudioClip impactClip;
+    public float impactVolume = 1f;
+
     HashSet<Health> hitThisSwing = new HashSet<Health>();
+    AudioSource audioSource;
 
-    // Optional: if you want extra anti-spam, store time per target
-    Dictionary<Health, float> lastHitTime = new Dictionary<Health, float>();
-
-    void Reset()
+    void Awake()
     {
-        // Auto-disable trigger damage at start
-        if (owner == null) owner = GetComponentInParent<PlayerMeleeEvents>();
+        audioSource = GetComponentInParent<AudioSource>();
     }
 
     public void BeginSwing()
@@ -34,40 +33,27 @@ public class MeleeHitbox : MonoBehaviour
 
     void OnTriggerStay(Collider other)
     {
-        // Helps if fists start inside collider or move fast
         TryHit(other);
     }
 
     void TryHit(Collider other)
     {
         if (owner == null) return;
-        if (!owner.CanDealDamage) return;     // only during active window
-        if (other == null) return;
-
-        // Don’t hit yourself
-        if (other.GetComponentInParent<PlayerController>() != null) return;
+        if (!owner.CanDealDamage) return;
 
         Health h = other.GetComponentInParent<Health>();
         if (h == null) return;
 
-        // Don’t hit same target multiple times in one swing
         if (hitThisSwing.Contains(h)) return;
-
-        // Optional extra cooldown per target
-        if (hitCooldownPerTarget > 0f)
-        {
-            if (lastHitTime.TryGetValue(h, out float t) && Time.time < t + hitCooldownPerTarget)
-                return;
-
-            lastHitTime[h] = Time.time;
-        }
-
         hitThisSwing.Add(h);
 
-        // Deal damage
+        // DAMAGE
         h.TakeDamage(damage, Health.DamageType.Melee);
 
-        // Tell owner we landed (optional, for SFX/camera shake/etc.)
+        // IMPACT SOUND
+        if (audioSource != null && impactClip != null)
+            audioSource.PlayOneShot(impactClip, impactVolume);
+
         owner.OnLandedHit(h);
     }
 }
