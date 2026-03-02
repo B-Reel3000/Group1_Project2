@@ -139,6 +139,71 @@ Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 3ba5df55de38cf04d86504dab0da7464, type: 3}
   m_PrefabInstance: {fileID: 1034561556}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &555043535
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 7044966589742271808, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_Name
+      value: eNEMY
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413265814457781346, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: damage
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413265814457781346, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: player
+      value: 
+      objectReference: {fileID: 8259052909800588405}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 18.07373
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.96
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -38.875595
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.028097449
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.9996052
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 183.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 8590725294175259509, guid: 351596165ec207249afdf9ee2be19265, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 351596165ec207249afdf9ee2be19265, type: 3}
 --- !u!1 &888343890
 GameObject:
   m_ObjectHideFlags: 0
@@ -1170,6 +1235,38 @@ PrefabInstance:
       propertyPath: animator
       value: 
       objectReference: {fileID: 532723765}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: groundOffset
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: deadCapsuleHeight
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: freezeBodyOnDeath
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: deadCapsuleCenter.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: deadCapsuleCenter.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: deadCapsuleCenter.z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: groundLayers.m_Bits
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4813343291087111498, guid: 780457af9d408054db80be78ee76e64e, type: 3}
+      propertyPath: shrinkCapsuleOnDeath
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5025828279109554992, guid: 780457af9d408054db80be78ee76e64e, type: 3}
       propertyPath: m_Name
       value: PlayerPhase2
@@ -1299,3 +1396,4 @@ SceneRoots:
   - {fileID: 1575125016}
   - {fileID: 5212693500832836941}
   - {fileID: 888343892}
+  - {fileID: 555043535}
