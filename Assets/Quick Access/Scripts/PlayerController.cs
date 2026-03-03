@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody), typeof(Collider))]
@@ -33,13 +33,14 @@ public class PlayerController : MonoBehaviour
     public float minPitch = -35f;
     public float maxPitch = 70f;
 
-    [Header("Aim")]
+    [Header("Camera Priorities (Higher = Active)")]
     public int explorePriority = 20;
     public int aimPriority = 10;
 
     Rigidbody rb;
     Vector2 moveInput;
     float pitch;
+
     bool isAiming;
 
     void Awake()
@@ -57,7 +58,8 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        SetAim(false);
+        // ✅ Force correct startup state so revolver/reticle/cameras are correct immediately
+        ApplyAimState(false, true);
     }
 
     void Update()
@@ -65,10 +67,10 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current != null)
         {
             if (Keyboard.current.rKey.wasPressedThisFrame)
-                SetAim(true);
+                ApplyAimState(true);
 
             if (Keyboard.current.qKey.wasPressedThisFrame)
-                SetAim(false);
+                ApplyAimState(false);
         }
 
         moveInput = ReadMoveKeys();
@@ -80,11 +82,15 @@ public class PlayerController : MonoBehaviour
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
 
+            // yaw
             transform.Rotate(0f, delta.x * sensitivityX, 0f);
 
+            // pitch
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
-            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+
+            if (cameraPivot != null)
+                cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
     }
 
@@ -97,22 +103,27 @@ public class PlayerController : MonoBehaviour
         rb.MovePosition(nextPos);
     }
 
-    void SetAim(bool aiming)
+    void ApplyAimState(bool aiming, bool force = false)
     {
-        if (isAiming == aiming) return;
+        if (!force && isAiming == aiming) return;
 
+        bool wasAiming = isAiming;
         isAiming = aiming;
 
-        // Hammer cock sound ONLY when entering aim
-        if (aiming && audioSource != null && hammerCockClip != null)
+        // ✅ Sound only when entering aim
+        if (!wasAiming && aiming && audioSource != null && hammerCockClip != null)
             audioSource.PlayOneShot(hammerCockClip);
 
+        // ✅ Correct camera priority logic:
+        // Not aiming = explore HIGH, aim LOW
+        // Aiming = aim HIGH, explore LOW
         if (exploreCam != null)
             exploreCam.Priority = aiming ? aimPriority : explorePriority;
 
         if (aimCam != null)
             aimCam.Priority = aiming ? explorePriority : aimPriority;
 
+        // UI / anim / weapon
         if (reticle != null)
             reticle.SetActive(aiming);
 

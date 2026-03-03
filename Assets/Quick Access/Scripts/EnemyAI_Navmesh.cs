@@ -1,46 +1,56 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI_Navmesh : MonoBehaviour
 {
-    public enum State { Chase, Orbit, Attack, Recover }
+    public enum State { Chase, Orbit, AttackWindup, Recover, Dead }
     public State state;
 
     [Header("Target")]
     public Transform player;
 
     [Header("NavMesh")]
-    public float repathRate = 0.15f;
+    public float repathRate = 0.2f;
 
     [Header("Distances")]
-    public float orbitEnterDistance = 4.0f;
-    public float orbitExitDistance  = 7.0f;
-    public float attackDistance     = 1.6f;
+    public float orbitEnterDistance = 5.0f;
+    public float orbitExitDistance = 8.0f;
+    public float attackDistance = 1.7f;
 
     [Header("Orbit")]
-    public float orbitRadius = 3.5f;
-    public float orbitSpeedDegrees = 60f;
+    public float orbitRadius = 4.5f;              // ✅ bigger = less crowding
+    public float orbitSpeedDegrees = 70f;
 
     [Header("Attack")]
-    public float attackWindup = 0.25f;
-    public float attackCooldown = 1.25f;
+    public float attackWindup = 0.28f;
+    public float attackCooldown = 1.35f;
     public int damage = 1;
 
-    [Header("Anti-Dogpile")]
-    [Range(1, 4)] public int maxAttackers = 1;
+    [Header("Animation")]
+    public Animator animator;
+    public string speedParam = "Speed";
+    public string attackTrigger = "Punch";        // MUST exist in Animator
+    public float faceTurnSpeed = 12f;
+
+    [Header("Feel")]
+    public float postHitPushBack = 0.8f;          // enemy steps back after attacking
+    public float pushBackTime = 0.15f;
 
     NavMeshAgent agent;
-    float nextAttackTime;
-    float nextRepathTime;
-
     int id;
+
+    float nextRepathTime;
+    float nextAttackTime;
+
     float orbitAngle;
     float orbitDrift;
 
-    static readonly System.Collections.Generic.HashSet<int> attackerIds =
-        new System.Collections.Generic.HashSet<int>();
+    bool hasSlot;
+    bool attackTriggered;
+    bool damageApplied;
+    Coroutine stateRoutine;
 
     void Start()
     {
@@ -53,88 +63,178 @@ public class EnemyAI_Navmesh : MonoBehaviour
             if (pc) player = pc.transform;
         }
 
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+
         orbitAngle = Random.Range(0f, 360f);
-        orbitDrift = Random.Range(0.7f, 1.3f);
+        orbitDrift = Random.Range(0.8f, 1.25f);
 
         state = State.Chase;
     }
 
     void Update()
     {
+        if (state == State.Dead) return;
         if (player == null) return;
         if (!agent.isOnNavMesh) return;
 
-        float dist = Vector3.Distance(transform.position, player.position);
+        float distSqr = (player.position - transform.position).sqrMagnitude;
+        float orbitEnterSqr = orbitEnterDistance * orbitEnterDistance;
+        float orbitExitSqr = orbitExitDistance * orbitExitDistance;
+        float attackSqr = attackDistance * attackDistance;
+
+        if (animator != null)
+            animator.SetFloat(speedParam, agent.velocity.magnitude);
 
         switch (state)
         {
             case State.Chase:
                 SetDestinationThrottled(player.position);
 
-                if (dist <= orbitEnterDistance)
+                if (distSqr <= orbitEnterSqr)
                     state = State.Orbit;
                 break;
 
             case State.Orbit:
-                if (dist > orbitExitDistance)
+                // too far -> chase
+                if (distSqr > orbitExitSqr)
                 {
                     ReleaseSlot();
                     state = State.Chase;
                     break;
                 }
 
-                if (Time.time >= nextAttackTime && dist <= orbitEnterDistance && TryClaimSlot())
+                // try to get an attack slot
+                if (Time.time >= nextAttackTime && TryClaimSlot())
                 {
-                    state = State.Attack;
-                    break;
-                }
-
-                Orbit();
-                break;
-
-            case State.Attack:
-                if (dist > orbitExitDistance)
-                {
-                    ReleaseSlot();
-                    state = State.Chase;
-                    break;
-                }
-
-                if (dist > attackDistance)
-                {
-                    SetDestinationThrottled(player.position);
+                    // close in to attack distance
+                    if (distSqr > attackSqr)
+                    {
+                        SetDestinationThrottled(player.position);
+                    }
+                    else
+                    {
+                        StartAttack();
+                    }
                 }
                 else
                 {
-                    agent.ResetPath();
-                    StartCoroutine(DoAttack());
-                    state = State.Recover;
+                    Orbit();
                 }
                 break;
 
+            case State.AttackWindup:
+                FacePlayer();
+                break;
+
             case State.Recover:
+                FacePlayer();
                 break;
         }
     }
 
-    IEnumerator DoAttack()
+    void StartAttack()
     {
-        yield return new WaitForSeconds(attackWindup);
+        if (stateRoutine != null) StopCoroutine(stateRoutine);
+        stateRoutine = StartCoroutine(AttackRoutine());
+    }
 
-        if (player != null)
+    IEnumerator AttackRoutine()
+    {
+        state = State.AttackWindup;
+        damageApplied = false;
+        attackTriggered = false;
+
+        // stop moving for the strike
+        agent.isStopped = true;
+        agent.ResetPath();
+
+        // Try to trigger animation
+        if (animator != null && !string.IsNullOrEmpty(attackTrigger))
         {
-            float dist = Vector3.Distance(transform.position, player.position);
-            if (dist <= attackDistance + 0.35f)
+            animator.ResetTrigger(attackTrigger);
+            animator.SetTrigger(attackTrigger);
+            attackTriggered = true;
+        }
+
+        // If trigger didn't happen (animator missing), we DO NOT deal damage.
+        if (!attackTriggered)
+        {
+            ReleaseSlot();
+            agent.isStopped = false;
+            nextAttackTime = Time.time + attackCooldown;
+            state = State.Orbit;
+            stateRoutine = null;
+            yield break;
+        }
+
+        // windup
+        float t = 0f;
+        while (t < attackWindup)
+        {
+            t += Time.deltaTime;
+            FacePlayer();
+            yield return null;
+        }
+
+        // ✅ Damage gate: must have slot + must pass global spacing
+        if (!damageApplied && player != null && state != State.Dead)
+        {
+            bool canDeal = true;
+
+            if (EnemyManager.Instance != null)
+            {
+                if (!EnemyManager.Instance.CanDealDamageNow())
+                    canDeal = false;
+            }
+
+            float hitRange = attackDistance + 0.35f;
+            float distSqr = (player.position - transform.position).sqrMagnitude;
+
+            if (canDeal && distSqr <= hitRange * hitRange)
             {
                 PlayerHealth ph = player.GetComponent<PlayerHealth>();
-                if (ph != null) ph.TakeDamage(damage);
+                if (ph != null)
+                {
+                    ph.TakeDamage(damage);
+                    damageApplied = true;
+
+                    if (EnemyManager.Instance != null)
+                        EnemyManager.Instance.ConsumeGlobalDamageWindow();
+                }
             }
         }
 
+        // recover + backstep to reduce crowding
+        state = State.Recover;
+
+        // backstep a bit
+        if (agent.enabled && agent.isOnNavMesh)
+        {
+            Vector3 back = (transform.position - player.position);
+            back.y = 0f;
+            back = back.sqrMagnitude < 0.001f ? -transform.forward : back.normalized;
+
+            Vector3 target = transform.position + back * postHitPushBack;
+
+            agent.isStopped = false;
+            agent.SetDestination(target);
+
+            yield return new WaitForSeconds(pushBackTime);
+        }
+        else
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        // cooldown + release
         nextAttackTime = Time.time + attackCooldown;
 
         ReleaseSlot();
+
+        if (agent != null) agent.isStopped = false;
         state = State.Orbit;
+        stateRoutine = null;
     }
 
     void Orbit()
@@ -153,21 +253,71 @@ public class EnemyAI_Navmesh : MonoBehaviour
         if (Time.time < nextRepathTime) return;
         nextRepathTime = Time.time + repathRate;
 
-        agent.SetDestination(pos);
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(pos);
+        }
+    }
+
+    void FacePlayer()
+    {
+        if (player == null) return;
+
+        Vector3 dir = (player.position - transform.position);
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        Quaternion target = Quaternion.LookRotation(dir);
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * faceTurnSpeed);
     }
 
     bool TryClaimSlot()
     {
-        if (attackerIds.Contains(id)) return true;
-        if (attackerIds.Count >= maxAttackers) return false;
+        if (hasSlot) return true;
 
-        attackerIds.Add(id);
-        return true;
+        if (EnemyManager.Instance == null)
+        {
+            // if no manager exists, they will all attack -> terrible
+            return true;
+        }
+
+        hasSlot = EnemyManager.Instance.TryClaimSlot(id);
+        return hasSlot;
     }
 
     void ReleaseSlot()
     {
-        attackerIds.Remove(id);
+        if (!hasSlot) return;
+        hasSlot = false;
+
+        if (EnemyManager.Instance != null)
+            EnemyManager.Instance.ReleaseSlot(id);
+    }
+
+    // Called by Health on death
+    public void OnDeath()
+    {
+        if (state == State.Dead) return;
+
+        state = State.Dead;
+
+        ReleaseSlot();
+
+        if (stateRoutine != null)
+        {
+            StopCoroutine(stateRoutine);
+            stateRoutine = null;
+        }
+
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.enabled = false;
+        }
+
+        enabled = false;
     }
 
     void OnDisable()
