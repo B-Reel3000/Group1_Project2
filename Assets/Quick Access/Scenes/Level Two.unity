@@ -926,6 +926,33 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5cad403f6bf61084eb7659b05fe3d44a, type: 3}
+--- !u!114 &329115511 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4209661094889243201, guid: 5cad403f6bf61084eb7659b05fe3d44a, type: 3}
+  m_PrefabInstance: {fileID: 329115510}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+--- !u!114 &329115512 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5879835004791266587, guid: 5cad403f6bf61084eb7659b05fe3d44a, type: 3}
+  m_PrefabInstance: {fileID: 329115510}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+--- !u!1 &329115513 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2782019408662547699, guid: 5cad403f6bf61084eb7659b05fe3d44a, type: 3}
+  m_PrefabInstance: {fileID: 329115510}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &353253405 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -2443145840534293608, guid: b7f464e8144e79d4d81b0491e71fd3dd, type: 3}
@@ -1821,9 +1848,13 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 5987702575540146747, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
+      propertyPath: m_text
+      value: 'Level Two:'
+      objectReference: {fileID: 0}
     - target: {fileID: 6073131332832051526, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
       propertyPath: m_Name
-      value: Pause UI
+      value: UI
       objectReference: {fileID: 0}
     - target: {fileID: 8089857101523530254, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
       propertyPath: gameplayCamera
@@ -1869,7 +1900,8 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 4532370520017345858, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 2653523920580417092, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
@@ -1878,13 +1910,39 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2653523920580417092, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1117623938}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7825171273731908093, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 698922921}
   m_SourcePrefab: {fileID: 100100000, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
 --- !u!224 &698922919 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2653523920580417092, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
   m_PrefabInstance: {fileID: 698922918}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &698922920 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7825171273731908093, guid: b1d6a5362444fcb41ab306da83fd51e9, type: 3}
+  m_PrefabInstance: {fileID: 698922918}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &698922921
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 698922920}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10bf2dff28c99a445b4184e5d2bb9222, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHUD
+  controller: {fileID: 1488314117}
+  gun: {fileID: 1488314116}
+  health: {fileID: 1488314113}
+  ammoRoot: {fileID: 329115513}
+  ammoText: {fileID: 329115512}
+  healthText: {fileID: 329115511}
 --- !u!1 &710839534 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -4931830253668557346, guid: b7f464e8144e79d4d81b0491e71fd3dd, type: 3}

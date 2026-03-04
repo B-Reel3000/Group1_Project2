@@ -69,8 +69,8 @@ public class UIScript : MonoBehaviour
     private bool slideOpen = false;
     private Coroutine slideRoutine;
 
-    private Vector3 returnPos;
-    private Quaternion returnRot;
+    private Vector3 originalPausePos;
+    private Quaternion originalPauseRot;
     private Coroutine cameraMoveRoutine;
     public float cameraMoveDuration = 0.5f;
     #endregion
@@ -88,6 +88,12 @@ public class UIScript : MonoBehaviour
     void Start()
     {
         SwitchToGameplayCamera();
+
+        if (pauseUICamera != null)
+        {
+            originalPausePos = pauseUICamera.transform.position;
+            originalPauseRot = pauseUICamera.transform.rotation;
+        }
 
         if (slidePanel != null)
         {
@@ -179,6 +185,89 @@ public class UIScript : MonoBehaviour
         DisableAllCameras();
         if (pauseUICamera != null) pauseUICamera.enabled = true;
     }
+
+    IEnumerator MovePauseCameraTo(Transform targetTransform)
+    {
+        if (pauseUICamera == null) yield break;
+
+        Vector3 startPos = pauseUICamera.transform.position;
+        Quaternion startRot = pauseUICamera.transform.rotation;
+
+        Vector3 targetPos = targetTransform.position;
+        Quaternion targetRot = targetTransform.rotation;
+
+        float elapsed = 0f;
+
+        while (elapsed < cameraMoveDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / cameraMoveDuration;
+
+            pauseUICamera.transform.position = Vector3.Lerp(startPos, targetPos, t);
+            pauseUICamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+
+            yield return null;
+        }
+
+        pauseUICamera.transform.position = targetPos;
+        pauseUICamera.transform.rotation = targetRot;
+    }
+
+    public void OpenHelpPanel()
+    {
+        if (helpPanel != null) helpPanel.SetActive(true);
+        if (pausePanel != null) pausePanel.SetActive(false);
+
+        if (helpUICamera != null)
+            StartCoroutine(MovePauseCameraTo(helpUICamera.transform));
+    }
+
+    public void OpenCredits()
+    {
+        if (creditsPanel != null) creditsPanel.SetActive(true);
+        if (pausePanel != null) pausePanel.SetActive(false);
+
+        if (creditsUICamera != null)
+            StartCoroutine(MovePauseCameraTo(creditsUICamera.transform));
+    }
+
+    public void CloseHelpPanel()
+    {
+        if (helpPanel != null) helpPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(true);
+
+        StartCoroutine(MovePauseCameraBack());
+    }
+
+    public void CloseCreditsPanel()
+    {
+        if (creditsPanel != null) creditsPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(true);
+
+        StartCoroutine(MovePauseCameraBack());
+    }
+
+    IEnumerator MovePauseCameraBack()
+    {
+        float elapsed = 0f;
+
+        Vector3 startPos = pauseUICamera.transform.position;
+        Quaternion startRot = pauseUICamera.transform.rotation;
+
+        while (elapsed < cameraMoveDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / cameraMoveDuration;
+
+            pauseUICamera.transform.position = Vector3.Lerp(startPos, originalPausePos, t);
+            pauseUICamera.transform.rotation = Quaternion.Slerp(startRot, originalPauseRot, t);
+
+            yield return null;
+        }
+
+        pauseUICamera.transform.position = originalPausePos;
+        pauseUICamera.transform.rotation = originalPauseRot;
+    }
     #endregion
 
     #region Menu Actions
@@ -238,29 +327,29 @@ public class UIScript : MonoBehaviour
         slideRect.anchoredPosition = targetPos;
     }
 
-    public void OpenHelpPanel()
-    {
-        if (helpPanel != null) helpPanel.SetActive(true);
-        if (pausePanel != null) pausePanel.SetActive(false);
-    }
+    //public void OpenHelpPanel()
+    //{
+    //    if (helpPanel != null) helpPanel.SetActive(true);
+    //    if (pausePanel != null) pausePanel.SetActive(false);
+    //}
 
-    public void CloseHelpPanel()
-    {
-        if (helpPanel != null) helpPanel.SetActive(false);
-        if (pausePanel != null) pausePanel.SetActive(true);
-    }
+    //public void CloseHelpPanel()
+    //{
+    //    if (helpPanel != null) helpPanel.SetActive(false);
+    //    if (pausePanel != null) pausePanel.SetActive(true);
+    //}
 
-    public void OpenCredits()
-    {
-        if (creditsPanel != null) creditsPanel.SetActive(true);
-        if (pausePanel != null) pausePanel.SetActive(false);
-    }
+    //public void OpenCredits()
+    //{
+    //    if (creditsPanel != null) creditsPanel.SetActive(true);
+    //    if (pausePanel != null) pausePanel.SetActive(false);
+    //}
 
-    public void CloseCreditsPanel()
-    {
-        if (creditsPanel != null) creditsPanel.SetActive(false);
-        if (pausePanel != null) pausePanel.SetActive(true);
-    }
+    //public void CloseCreditsPanel()
+    //{
+    //    if (creditsPanel != null) creditsPanel.SetActive(false);
+    //    if (pausePanel != null) pausePanel.SetActive(true);
+    //}
 
     public void ResumeGame()
     {
