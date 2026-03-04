@@ -188,7 +188,7 @@ AnimatorState:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: KO
-  m_Speed: 2
+  m_Speed: 1.5
   m_CycleOffset: 0
   m_Transitions: []
   m_StateMachineBehaviours: []
@@ -200,7 +200,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: -203655887218126122, guid: 597fb67bd169a3d4e9753c0ce10f4ba2, type: 3}
+  m_Motion: {fileID: -203655887218126122, guid: 9b6b4bc09ea2ef944bfe69758086fa89, type: 3}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
@@ -366,7 +366,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: -203655887218126122, guid: 77c753e050d233547987f544d6e58987, type: 3}
+  m_Motion: {fileID: -203655887218126122, guid: 05f6d6cff1189c348b16bad9548f6121, type: 3}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
