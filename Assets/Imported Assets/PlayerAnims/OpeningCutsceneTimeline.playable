@@ -235,7 +235,7 @@ MonoBehaviour:
   m_Name: AnimationPlayableAsset
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.AnimationPlayableAsset
   m_Clip: {fileID: -203655887218126122, guid: 10e998cff93c5254eb4c65a16710ccb9, type: 3}
-  m_Position: {x: 0, y: 0, z: 0}
+  m_Position: {x: 0.00010426169, y: 0.14964193, z: -0.000042000047}
   m_EulerAngles: {x: 0, y: 0, z: 0}
   m_UseTrackMatchFields: 1
   m_MatchTargetFields: 63

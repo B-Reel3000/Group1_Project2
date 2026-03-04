@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Quick Access/Scenes/Level Two.unity
     guid: 1b8c682c3076bb249a47d586b8219839
+  - enabled: 1
+    path: Assets/Quick Access/Scenes/LevelOneIntro.unity
+    guid: 158246d2010d34442b71174628b4bb37
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
