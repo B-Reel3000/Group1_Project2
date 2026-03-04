@@ -15240,7 +15240,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CutsceneController
   director: {fileID: 2115690610}
-  nextScene: Level Two
+  nextScene: LevelTwoIntro
   endDelay: 0.1
 --- !u!4 &649753983
 Transform:

@@ -4717,7 +4717,7 @@ PrefabInstance:
     - target: {fileID: 3689448032701943122, guid: c6abf10b5e3c4e240bbe064884ec6268, type: 3}
       propertyPath: reticle
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 305806794}
     - target: {fileID: 4586788782146960936, guid: c6abf10b5e3c4e240bbe064884ec6268, type: 3}
       propertyPath: attackCooldown
       value: 0.25
@@ -8471,6 +8471,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 302d616665881974dab44b00381a2ee7, type: 3}
+--- !u!1 &305806794 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1840459857756655615, guid: 5cad403f6bf61084eb7659b05fe3d44a, type: 3}
+  m_PrefabInstance: {fileID: 1916425818}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &306194099
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -50644,7 +50649,7 @@ PrefabInstance:
     - target: {fileID: 3771592967362063856, guid: f6868e18f3438ee4f836f31d6918871a, type: 3}
       propertyPath: gameplayCanvas
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1779037370}
     - target: {fileID: 7494631530097256777, guid: f6868e18f3438ee4f836f31d6918871a, type: 3}
       propertyPath: m_Name
       value: GameManager
