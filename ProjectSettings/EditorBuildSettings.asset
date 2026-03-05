@@ -9,20 +9,35 @@ EditorBuildSettings:
     path: Assets/Quick Access/Scenes/MainMenu.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
+    path: Assets/Quick Access/Scenes/LevelOneIntro.unity
+    guid: 158246d2010d34442b71174628b4bb37
+  - enabled: 1
     path: Assets/Quick Access/Scenes/Level One.unity
     guid: 51c8714a38813bf499f0756640392da3
   - enabled: 1
     path: Assets/Quick Access/Scenes/LevelOneInterrogation.unity
     guid: d88ed0aee7fe0834e9a6f144fe4d687d
   - enabled: 1
+    path: Assets/LevelTwoIntro.unity
+    guid: 2646f0765f8008f439ca9dac9fe83ab3
+  - enabled: 1
     path: Assets/Quick Access/Scenes/Level Two.unity
     guid: 1b8c682c3076bb249a47d586b8219839
   - enabled: 1
-    path: Assets/Quick Access/Scenes/LevelOneIntro.unity
-    guid: 158246d2010d34442b71174628b4bb37
+    path: Assets/LevelTwoInterrogation.unity
+    guid: d660d9552b81bbc43afd98cd85ba978c
   - enabled: 1
-    path: Assets/LevelTwoIntro.unity
-    guid: 2646f0765f8008f439ca9dac9fe83ab3
+    path: Assets/Quick Access/Scenes/Level 2.5.unity
+    guid: ade4402bdef23d74782c7eb1de9bce0e
+  - enabled: 1
+    path: Assets/Quick Access/Scenes/Level Three.unity
+    guid: b61778b4c4b0b464ab59343a2f24fd29
+  - enabled: 1
+    path: Assets/Quick Access/Scenes/Level3Cutscene.unity
+    guid: bafd4fe74bd7b9e46924670dec0cca10
+  - enabled: 1
+    path: Assets/Quick Access/Scenes/EndingCredits.unity
+    guid: f400566dab1ae4344a41d18f6408a877
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

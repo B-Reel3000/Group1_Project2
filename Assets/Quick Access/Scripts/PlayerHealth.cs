@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -43,6 +43,7 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         if (amount <= 0) return;
 
+        // cooldown gate
         if (Time.time < nextDamageTime) return;
         nextDamageTime = Time.time + damageCooldown;
 
@@ -60,6 +61,16 @@ public class PlayerHealth : MonoBehaviour
 
         if (animator != null)
             animator.SetTrigger(hitTrigger);
+    }
+
+    // ✅ NEW: bypasses cooldown + instantly kills (for debug)
+    public void KillInstant()
+    {
+        if (isDead) return;
+
+        currentHealth = 0;
+        nextDamageTime = 0f; // not required, but keeps state clean
+        Die();
     }
 
     void Die()
@@ -90,10 +101,6 @@ public class PlayerHealth : MonoBehaviour
 
         if (GameManager.Instance != null)
             GameManager.Instance.Lose();
-
-        // Optional: disable controls
-        // GetComponent<PlayerController>().enabled = false;
-        // GetComponent<PlayerMelee>().enabled = false;
     }
 
     void SnapToGround()
@@ -102,7 +109,6 @@ public class PlayerHealth : MonoBehaviour
 
         if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, snapRayLength, groundLayers, QueryTriggerInteraction.Ignore))
         {
-            // Place root on the ground hit point (plus a tiny offset)
             Vector3 p = transform.position;
             p.y = hit.point.y + groundOffset;
             transform.position = p;

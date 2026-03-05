@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,8 +17,10 @@ public class FadeManager : MonoBehaviour
     [Header("Auto Fade-In On Scene Load")]
     public bool autoFadeInOnSceneLoad = true;
 
-    [Tooltip("Scenes that should NOT auto fade-in (ex: MainMenu). Leave empty if you want fade-in everywhere.")]
+    [Tooltip("Scenes that should NOT auto fade-in (ex: MainMenu). These scenes will FORCE-CLEAR the fade to transparent on load.")]
     public List<string> autoFadeInExcludeScenes = new List<string> { "MainMenu" };
+
+    Coroutine fadeRoutine;
 
     void Awake()
     {
@@ -47,19 +49,29 @@ public class FadeManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (!autoFadeInOnSceneLoad) return;
         if (fadeGroup == null) return;
 
-        if (autoFadeInExcludeScenes != null && autoFadeInExcludeScenes.Contains(scene.name))
+        bool excluded = autoFadeInExcludeScenes != null && autoFadeInExcludeScenes.Contains(scene.name);
+
+        // ✅ CRITICAL FIX:
+        // If excluded (MainMenu), always clear the fade so the background scenery is visible.
+        if (excluded)
+        {
+            StopFadeRoutine();
+            fadeGroup.alpha = 0f;
+            fadeGroup.blocksRaycasts = false;
             return;
+        }
+
+        if (!autoFadeInOnSceneLoad) return;
 
         // Start black then fade in
+        StopFadeRoutine();
         fadeGroup.alpha = 1f;
         fadeGroup.blocksRaycasts = true;
-        StartCoroutine(Fade(0f, fadeInTime));
+        fadeRoutine = StartCoroutine(Fade(0f, fadeInTime));
     }
 
-    // --- Existing style API ---
     public void FadeToScene(string sceneName)
     {
         StartCoroutine(FadeToSceneRoutine(sceneName));
@@ -69,16 +81,17 @@ public class FadeManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
+        // Fade out to black
         yield return Fade(1f, fadeOutTime);
 
         SceneManager.LoadScene(sceneName);
 
-        // wait 1 frame so scene initializes
+        // Wait 1 frame so scene initializes
         yield return null;
 
-        // If autoFadeInOnSceneLoad is enabled, OnSceneLoaded will handle fade-in.
-        // If disabled, do it here:
-        if (!autoFadeInOnSceneLoad)
+        // If auto fade-in is disabled, handle fade-in here.
+        // If enabled, OnSceneLoaded will handle it (or clear it for excluded scenes).
+        if (!autoFadeInOnSceneLoad && fadeGroup != null)
             yield return Fade(0f, fadeInTime);
     }
 
@@ -87,10 +100,10 @@ public class FadeManager : MonoBehaviour
         if (fadeGroup == null) return;
         if (duration < 0f) duration = fadeInTime;
 
-        StopAllCoroutines();
+        StopFadeRoutine();
         fadeGroup.alpha = 1f;
         fadeGroup.blocksRaycasts = true;
-        StartCoroutine(Fade(0f, duration));
+        fadeRoutine = StartCoroutine(Fade(0f, duration));
     }
 
     public void FadeOutNow(float duration = -1f)
@@ -98,9 +111,18 @@ public class FadeManager : MonoBehaviour
         if (fadeGroup == null) return;
         if (duration < 0f) duration = fadeOutTime;
 
-        StopAllCoroutines();
+        StopFadeRoutine();
         fadeGroup.blocksRaycasts = true;
-        StartCoroutine(Fade(1f, duration));
+        fadeRoutine = StartCoroutine(Fade(1f, duration));
+    }
+
+    void StopFadeRoutine()
+    {
+        if (fadeRoutine != null)
+        {
+            StopCoroutine(fadeRoutine);
+            fadeRoutine = null;
+        }
     }
 
     IEnumerator Fade(float target, float duration)
@@ -122,9 +144,10 @@ public class FadeManager : MonoBehaviour
 
         fadeGroup.alpha = target;
         fadeGroup.blocksRaycasts = (target > 0.001f);
+
+        fadeRoutine = null;
     }
 
-    // Convenience helper if you want one-liners elsewhere
     public static void FadeToSceneSafe(string sceneName)
     {
         if (Instance != null) Instance.FadeToScene(sceneName);

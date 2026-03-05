@@ -27,18 +27,15 @@ public class GameManager : MonoBehaviour
 
         Debug.Log("PLAYER WIN");
 
-        // Stop gameplay
-        Time.timeScale = 0f;
+        // IMPORTANT: do not freeze time (fade + anims need to play)
+        Time.timeScale = 1f;
 
-        // Hide HUD
         if (gameplayCanvas != null)
             gameplayCanvas.SetActive(false);
 
-        // Show win UI
         if (winPanel != null)
             winPanel.SetActive(true);
 
-        // Cursor back
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -51,7 +48,8 @@ public class GameManager : MonoBehaviour
 
         Debug.Log("PLAYER LOSE");
 
-        Time.timeScale = 0f;
+        // IMPORTANT: do not freeze time (fade + anims need to play)
+        Time.timeScale = 1f;
 
         if (gameplayCanvas != null)
             gameplayCanvas.SetActive(false);
