@@ -772,6 +772,10 @@ PrefabInstance:
       propertyPath: faceTurnSpeed
       value: 5
       objectReference: {fileID: 0}
+    - target: {fileID: 4712772800492512275, guid: 63696af8e9f07674f860a8afb16ee616, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 2b6bde14ab8db5f41867cc42a1137816, type: 2}
     - target: {fileID: 5329267409388633501, guid: 63696af8e9f07674f860a8afb16ee616, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4.090815
