@@ -9,20 +9,29 @@ public class BossFloyd : MonoBehaviour
     public Transform player;
     public Animator animator;
     public NavMeshAgent agent;
+    public Health health;
+
+    [Header("Boss Health")]
+    public int bossMaxHealth = 20;
+    public bool bossGunOneHitKill = false;
 
     [Header("Combat")]
     public float attackRange = 2.2f;
     public float attackCooldown = 1.1f;
     public int damage = 2;
 
-    float nextAttackTime;
+    [Header("Animation")]
+    public string speedParam = "Speed";
+    public string attackTrigger = "Punch";
+    public float faceTurnSpeed = 10f;
 
-    Health health;
+    float nextAttackTime;
     bool dead;
 
     void Awake()
     {
-        health = GetComponent<Health>();
+        if (health == null)
+            health = GetComponent<Health>();
 
         if (agent == null)
             agent = GetComponent<NavMeshAgent>();
@@ -39,18 +48,37 @@ public class BossFloyd : MonoBehaviour
             if (pc) player = pc.transform;
         }
 
-        // Floyd intro
+        // FORCE Floyd to be a boss and not a normal enemy
+        if (health != null)
+        {
+            health.maxHealth = bossMaxHealth;
+            health.currentHealth = bossMaxHealth;
+            health.gunOneHitKill = bossGunOneHitKill;
+        }
+
         BossIntroUI intro = FindFirstObjectByType<BossIntroUI>();
         if (intro != null)
-            intro.ShowBossName("Floyd 'The Bruiser' Thompson");
+            intro.ShowBossName("Floyd 'Promiscuous' Thompson");
 
-        health.OnDeath += OnDeath;
+        if (health != null)
+        {
+            health.OnDeath -= OnDeath;
+            health.OnDeath += OnDeath;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (health != null)
+            health.OnDeath -= OnDeath;
     }
 
     void Update()
     {
         if (dead) return;
+        if (health != null && health.IsDead) return;
         if (player == null) return;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         float dist = Vector3.Distance(transform.position, player.position);
 
@@ -60,33 +88,31 @@ public class BossFloyd : MonoBehaviour
             agent.SetDestination(player.position);
 
             if (animator != null)
-                animator.SetFloat("Speed", agent.velocity.magnitude);
+                animator.SetFloat(speedParam, agent.velocity.magnitude);
         }
         else
         {
             agent.isStopped = true;
 
             if (animator != null)
-                animator.SetFloat("Speed", 0);
+                animator.SetFloat(speedParam, 0f);
 
             FacePlayer();
-
             TryAttack();
         }
     }
 
     void FacePlayer()
     {
+        if (player == null) return;
+
         Vector3 dir = player.position - transform.position;
-        dir.y = 0;
+        dir.y = 0f;
 
         if (dir.sqrMagnitude < 0.01f) return;
 
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            Quaternion.LookRotation(dir),
-            Time.deltaTime * 10f
-        );
+        Quaternion targetRot = Quaternion.LookRotation(dir);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * faceTurnSpeed);
     }
 
     void TryAttack()
@@ -95,14 +121,18 @@ public class BossFloyd : MonoBehaviour
 
         nextAttackTime = Time.time + attackCooldown;
 
-        if (animator != null)
-            animator.SetTrigger("Punch");
+        if (animator != null && !string.IsNullOrEmpty(attackTrigger))
+        {
+            animator.ResetTrigger(attackTrigger);
+            animator.SetTrigger(attackTrigger);
+        }
 
         Invoke(nameof(DealDamage), 0.35f);
     }
 
     void DealDamage()
     {
+        if (dead) return;
         if (player == null) return;
 
         float dist = Vector3.Distance(transform.position, player.position);
@@ -110,7 +140,6 @@ public class BossFloyd : MonoBehaviour
         if (dist <= attackRange + 0.4f)
         {
             PlayerHealth ph = player.GetComponent<PlayerHealth>();
-
             if (ph != null)
                 ph.TakeDamage(damage);
         }
@@ -123,6 +152,7 @@ public class BossFloyd : MonoBehaviour
         if (agent != null)
         {
             agent.isStopped = true;
+            agent.ResetPath();
             agent.enabled = false;
         }
     }

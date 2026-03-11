@@ -37,6 +37,10 @@ public class PlayerController : MonoBehaviour
     public int explorePriority = 20;
     public int aimPriority = 10;
 
+    [Header("Aim Movement Remap")]
+    [Tooltip("If true, aim mode uses side-on controls for the right-facing aim animation.")]
+    public bool useSideAimMovement = true;
+
     Rigidbody rb;
     Vector2 moveInput;
     float pitch;
@@ -80,10 +84,9 @@ public class PlayerController : MonoBehaviour
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
 
-            // Rotate player left/right
+            // Keep your existing yaw/pitch behavior
             transform.Rotate(0f, delta.x * sensitivityX, 0f);
 
-            // Rotate camera pivot up/down
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
@@ -94,30 +97,40 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        Vector3 moveDir = GetCameraRelativeMoveDirection(moveInput);
+        Vector3 moveDir = isAiming && useSideAimMovement
+            ? GetSideAimMoveDirection(moveInput)
+            : GetNormalMoveDirection(moveInput);
 
         Vector3 nextPos = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
         rb.MovePosition(nextPos);
     }
 
-    Vector3 GetCameraRelativeMoveDirection(Vector2 input)
+    Vector3 GetNormalMoveDirection(Vector2 input)
     {
         if (input.sqrMagnitude < 0.0001f)
             return Vector3.zero;
 
-        Transform cam = Camera.main != null ? Camera.main.transform : transform;
+        Vector3 move = transform.forward * input.y + transform.right * input.x;
 
-        Vector3 camForward = cam.forward;
-        Vector3 camRight = cam.right;
+        if (move.sqrMagnitude > 1f)
+            move.Normalize();
 
-        // flatten camera vectors so movement stays on ground
-        camForward.y = 0f;
-        camRight.y = 0f;
+        return move;
+    }
 
-        camForward.Normalize();
-        camRight.Normalize();
+    Vector3 GetSideAimMoveDirection(Vector2 input)
+    {
+        if (input.sqrMagnitude < 0.0001f)
+            return Vector3.zero;
 
-        Vector3 move = camForward * input.y + camRight * input.x;
+        // Side-on remap for "character looks right while aiming"
+        // W = right
+        // S = left
+        // A = forward
+        // D = backward
+        Vector3 move =
+            transform.right * input.y +
+            (-transform.forward) * input.x;
 
         if (move.sqrMagnitude > 1f)
             move.Normalize();
@@ -135,8 +148,6 @@ public class PlayerController : MonoBehaviour
         if (!wasAiming && aiming && audioSource != null && hammerCockClip != null)
             audioSource.PlayOneShot(hammerCockClip);
 
-        // Not aiming = explore HIGH, aim LOW
-        // Aiming = aim HIGH, explore LOW
         if (exploreCam != null)
             exploreCam.Priority = aiming ? aimPriority : explorePriority;
 

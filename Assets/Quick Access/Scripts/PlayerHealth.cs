@@ -13,11 +13,8 @@ public class PlayerHealth : MonoBehaviour
     [Header("Feel")]
     public float damageCooldown = 0.6f;
 
-    [Header("Death Ground Snap")]
-    public LayerMask groundLayers = ~0;
-    public float snapRayStartHeight = 1.5f;
-    public float snapRayLength = 5f;
-    public float groundOffset = 0.08f;
+    [Header("Death")]
+    public float deathFreezeY = 0.02f;
 
     bool isDead;
     float nextDamageTime;
@@ -35,6 +32,9 @@ public class PlayerHealth : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
         controller = GetComponent<PlayerController>();
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
 
         if (animator != null)
         {
@@ -62,8 +62,11 @@ public class PlayerHealth : MonoBehaviour
 
         currentHealth = newHealth;
 
-        if (animator != null)
+        if (animator != null && !string.IsNullOrEmpty(hitTrigger))
+        {
+            animator.ResetTrigger(hitTrigger);
             animator.SetTrigger(hitTrigger);
+        }
     }
 
     public void KillInstant()
@@ -80,14 +83,11 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        Debug.Log("Player died!");
-
         if (animator != null)
             animator.SetBool(deadBool, true);
 
-        // DO NOT disable capsule or the body can sink/clip
-        if (capsule != null)
-            capsule.enabled = true;
+        if (controller != null)
+            controller.enabled = false;
 
         if (rb != null)
         {
@@ -97,24 +97,15 @@ public class PlayerHealth : MonoBehaviour
             rb.useGravity = false;
         }
 
-        if (controller != null)
-            controller.enabled = false;
+        // Keep the body from dropping or drifting
+        Vector3 p = transform.position;
+        p.y = deathFreezeY;
+        transform.position = p;
 
-        SnapToGround();
+        if (capsule != null)
+            capsule.enabled = true;
 
         if (GameManager.Instance != null)
             GameManager.Instance.Lose();
-    }
-
-    void SnapToGround()
-    {
-        Vector3 origin = transform.position + Vector3.up * snapRayStartHeight;
-
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, snapRayLength, groundLayers, QueryTriggerInteraction.Ignore))
-        {
-            Vector3 p = transform.position;
-            p.y = hit.point.y + groundOffset;
-            transform.position = p;
-        }
     }
 }
