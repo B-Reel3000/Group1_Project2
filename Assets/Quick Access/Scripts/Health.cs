@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Health : MonoBehaviour
 {
@@ -14,25 +15,21 @@ public class Health : MonoBehaviour
     public int currentHealth;
 
     [Header("Gun Rules")]
-    [Tooltip("If true, any Gun damage instantly kills this Health.")]
     public bool gunOneHitKill = true;
 
     [Header("Animation (Optional)")]
     public Animator animator;
     public string hitTrigger = "Hit";
     public string deadBool = "Dead";
-    public float destroyDelay = 1.5f;
 
-    [Header("Death Offset Fix")]
-    [Tooltip("Assign the visual model root (child) that should shift down on death to avoid floating.")]
-    public Transform visualRoot;
-    [Tooltip("Negative values usually push the model down onto the floor.")]
-    public float deathYOffset = -0.35f;
+    [Header("Death Handling")]
+    [Tooltip("If true, enemy is destroyed immediately on death. Best deadline-safe option.")]
+    public bool destroyImmediatelyOnDeath = true;
 
-    // Fired whenever damage is taken (even if it doesn't kill)
-    public event Action<Health, DamageType, int> OnDamaged; // (who, type, amount)
+    [Tooltip("Used only if destroyImmediatelyOnDeath is false.")]
+    public float destroyDelay = 0.15f;
 
-    // Fired when health reaches 0
+    public event Action<Health, DamageType, int> OnDamaged;
     public event Action<Health, DamageType> OnDeath;
 
     bool dead;
@@ -44,9 +41,8 @@ public class Health : MonoBehaviour
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
 
-        // Convenience: if visualRoot not assigned, try to use animator's transform (often the model)
-        if (visualRoot == null && animator != null)
-            visualRoot = animator.transform;
+        if (animator != null)
+            animator.applyRootMotion = false;
     }
 
     public void TakeDamage(int amount, DamageType type)
@@ -54,7 +50,6 @@ public class Health : MonoBehaviour
         if (dead) return;
         if (amount <= 0) return;
 
-        // Gun instant kill option
         if (type == DamageType.Gun && gunOneHitKill)
         {
             OnDamaged?.Invoke(this, type, amount);
@@ -65,7 +60,6 @@ public class Health : MonoBehaviour
 
         currentHealth = Mathf.Clamp(currentHealth - amount, 0, maxHealth);
 
-        // Hit reaction trigger (more reliable with ResetTrigger)
         if (animator != null && !string.IsNullOrEmpty(hitTrigger))
         {
             animator.ResetTrigger(hitTrigger);
@@ -83,20 +77,42 @@ public class Health : MonoBehaviour
         if (dead) return;
         dead = true;
 
-        // Push the visual model down so death animations don't "float"
-        if (visualRoot != null)
+        // Stop AI immediately
+        NavMeshAgent agent = GetComponent<NavMeshAgent>();
+        if (agent == null) agent = GetComponentInParent<NavMeshAgent>();
+
+        if (agent != null)
         {
-            Vector3 p = visualRoot.localPosition;
-            p.y += deathYOffset;
-            visualRoot.localPosition = p;
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.enabled = false;
         }
 
+        EnemyAI_Navmesh ai = GetComponent<EnemyAI_Navmesh>();
+        if (ai == null) ai = GetComponentInParent<EnemyAI_Navmesh>();
+
+        if (ai != null)
+            ai.OnDeath();
+
+        // Disable all trigger hitboxes so dead enemy cannot still damage player
+        Collider[] allCols = GetComponentsInChildren<Collider>();
+        for (int i = 0; i < allCols.Length; i++)
+        {
+            if (allCols[i].isTrigger)
+                allCols[i].enabled = false;
+        }
+
+        // Fire death event first so WaveManager / boss logic still works
+        OnDeath?.Invoke(this, type);
+
+        // Optional death anim if you really want a tiny beat before deleting
         if (animator != null && !string.IsNullOrEmpty(deadBool))
             animator.SetBool(deadBool, true);
 
-        OnDeath?.Invoke(this, type);
-
-        Destroy(gameObject, destroyDelay);
+        if (destroyImmediatelyOnDeath)
+            Destroy(gameObject);
+        else
+            Destroy(gameObject, destroyDelay);
     }
 
     public bool IsDead => dead;

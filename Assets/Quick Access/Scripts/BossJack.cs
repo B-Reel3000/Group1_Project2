@@ -11,45 +11,31 @@ public class BossJack : MonoBehaviour
     public Animator animator;
     public Transform shootPoint;
 
-    [Header("Ranged Combat")]
-    public float shootRange = 35f;
-    public float preferredDistance = 14f;
-    public float retreatDistance = 9f;
-    public float shootCooldown = 0.9f;
+    [Header("Combat")]
+    public float shootRange = 30f;
+    public float shootCooldown = 1.2f;
     public int gunDamage = 1;
 
-    [Header("Animation")]
-    public string shootTrigger = "Shoot";  // create this Trigger in Animator
-    public string moveSpeedParam = "Speed"; // optional
-    public bool facePlayerWhileShooting = true;
-
-    [Header("Muzzle Flash Light")]
-    public Light muzzleLight;              // drag your Point Light here
-    public float muzzleFlashTime = 0.05f;  // 0.03 - 0.07 feels good
-    public float muzzleLightIntensity = 8f;
-
-    [Header("Teleport On Hit")]
+    [Header("Teleport")]
     public Transform[] teleportPoints;
-    public float teleportCooldown = 1.25f;
-    public float minDistanceFromPlayer = 7f;
+    public float teleportCooldown = 1.5f;
 
-    [Header("Teleport Smoke VFX")]
+    [Header("Effects")]
     public GameObject smokePrefab;
-    public float smokeLifetime = 2.0f;
-    public Vector3 smokeOffset = Vector3.zero;
+    public float smokeLife = 2f;
+    public Light muzzleLight;
+    public float muzzleFlashTime = 0.05f;
 
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip gunshotClip;
     public AudioClip teleportClip;
 
-    float nextShootTime;
-    float nextTeleportTime;
+    float nextShot;
+    float nextTeleport;
 
     Health health;
     bool dead;
-
-    Coroutine muzzleRoutine;
 
     void Awake()
     {
@@ -64,7 +50,6 @@ public class BossJack : MonoBehaviour
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
-        // Make sure muzzle light starts OFF
         if (muzzleLight != null)
             muzzleLight.enabled = false;
     }
@@ -77,205 +62,120 @@ public class BossJack : MonoBehaviour
             if (pc) player = pc.transform;
         }
 
-        // Boss should not be one-shot by gun
         health.gunOneHitKill = false;
 
         health.OnDamaged += OnDamaged;
         health.OnDeath += OnDeath;
-    }
 
-    void OnDestroy()
-    {
-        if (health != null)
-        {
-            health.OnDamaged -= OnDamaged;
-            health.OnDeath -= OnDeath;
-        }
+        BossIntroUI intro = FindFirstObjectByType<BossIntroUI>();
+        if (intro != null)
+            intro.ShowBossName("Jack 'The Devil' Porter");
     }
 
     void Update()
     {
         if (dead) return;
         if (player == null) return;
-        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
+        FacePlayer();
 
         float dist = Vector3.Distance(transform.position, player.position);
 
-        HandleMovement(dist);
-
-        if (facePlayerWhileShooting)
-            FacePlayer();
-
-        // Optional animator speed
-        if (animator != null && !string.IsNullOrEmpty(moveSpeedParam))
-            animator.SetFloat(moveSpeedParam, agent.velocity.magnitude);
-
-        // Shoot
-        if (Time.time >= nextShootTime && dist <= shootRange && dist >= 6f)
+        if (dist <= shootRange && Time.time >= nextShot)
         {
-            nextShootTime = Time.time + shootCooldown;
+            nextShot = Time.time + shootCooldown;
             Shoot();
-        }
-    }
-
-    void HandleMovement(float dist)
-    {
-        if (dist < retreatDistance)
-        {
-            Vector3 away = (transform.position - player.position);
-            away.y = 0f;
-            away = away.sqrMagnitude < 0.001f ? transform.forward : away.normalized;
-
-            Vector3 target = transform.position + away * 6f;
-            agent.SetDestination(target);
-        }
-        else if (dist > preferredDistance)
-        {
-            agent.SetDestination(player.position);
-        }
-        else
-        {
-            agent.ResetPath();
         }
     }
 
     void FacePlayer()
     {
         Vector3 dir = player.position - transform.position;
-        dir.y = 0f;
+        dir.y = 0;
 
-        if (dir.sqrMagnitude < 0.001f) return;
+        if (dir.sqrMagnitude < 0.01f) return;
 
-        Quaternion rot = Quaternion.LookRotation(dir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 10f);
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            Quaternion.LookRotation(dir),
+            Time.deltaTime * 8f
+        );
     }
 
     void Shoot()
     {
-        if (shootPoint == null) return;
+        if (animator != null)
+            animator.SetTrigger("Shoot");
 
-        // Play shoot animation
-        if (animator != null && !string.IsNullOrEmpty(shootTrigger))
-        {
-            animator.ResetTrigger(shootTrigger);
-            animator.SetTrigger(shootTrigger);
-        }
-
-        // Muzzle flash light
-        DoMuzzleFlash();
-
-        // Gunshot sound
         if (audioSource != null && gunshotClip != null)
             audioSource.PlayOneShot(gunshotClip);
 
-        // Hitscan ray
+        if (muzzleLight != null)
+            StartCoroutine(MuzzleFlash());
+
         Ray ray = new Ray(shootPoint.position, shootPoint.forward);
 
-        if (Physics.Raycast(ray, out RaycastHit hit, shootRange, ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(ray, out RaycastHit hit, shootRange))
         {
             PlayerHealth ph = hit.collider.GetComponentInParent<PlayerHealth>();
+
             if (ph != null)
                 ph.TakeDamage(gunDamage);
         }
     }
 
-    void DoMuzzleFlash()
+    IEnumerator MuzzleFlash()
     {
-        if (muzzleLight == null) return;
-
-        if (muzzleRoutine != null)
-            StopCoroutine(muzzleRoutine);
-
-        muzzleRoutine = StartCoroutine(MuzzleFlashRoutine());
-    }
-
-    IEnumerator MuzzleFlashRoutine()
-    {
-        float originalIntensity = muzzleLight.intensity;
-
-        muzzleLight.intensity = muzzleLightIntensity;
         muzzleLight.enabled = true;
-
         yield return new WaitForSeconds(muzzleFlashTime);
-
         muzzleLight.enabled = false;
-        muzzleLight.intensity = originalIntensity;
-
-        muzzleRoutine = null;
     }
 
-    void OnDamaged(Health who, Health.DamageType type, int amount)
+    void OnDamaged(Health h, Health.DamageType type, int amount)
     {
         if (dead) return;
-        if (Time.time < nextTeleportTime) return;
+        if (Time.time < nextTeleport) return;
 
-        nextTeleportTime = Time.time + teleportCooldown;
-        TeleportWithSmoke();
+        nextTeleport = Time.time + teleportCooldown;
+
+        Teleport();
     }
 
-    void TeleportWithSmoke()
+    void Teleport()
     {
-        if (teleportPoints == null || teleportPoints.Length == 0) return;
+        if (teleportPoints.Length == 0) return;
 
-        Vector3 fromPos = transform.position;
+        Vector3 startPos = transform.position;
 
-        Transform target = null;
-        for (int i = 0; i < teleportPoints.Length; i++)
-        {
-            Transform p = teleportPoints[Random.Range(0, teleportPoints.Length)];
-            if (p == null) continue;
-
-            if (player == null || Vector3.Distance(p.position, player.position) >= minDistanceFromPlayer)
-            {
-                target = p;
-                break;
-            }
-        }
-
-        if (target == null)
-            target = teleportPoints[Random.Range(0, teleportPoints.Length)];
+        Transform target = teleportPoints[Random.Range(0, teleportPoints.Length)];
 
         if (target == null) return;
 
-        Vector3 toPos = target.position;
-
-        SpawnSmoke(fromPos);
+        if (smokePrefab != null)
+        {
+            GameObject smoke = Instantiate(smokePrefab, startPos, Quaternion.identity);
+            Destroy(smoke, smokeLife);
+        }
 
         if (audioSource != null && teleportClip != null)
             audioSource.PlayOneShot(teleportClip);
 
-        agent.Warp(toPos);
-        agent.ResetPath();
+        agent.Warp(target.position);
 
-        SpawnSmoke(toPos);
+        if (smokePrefab != null)
+        {
+            GameObject smoke = Instantiate(smokePrefab, target.position, Quaternion.identity);
+            Destroy(smoke, smokeLife);
+        }
     }
 
-    void SpawnSmoke(Vector3 worldPos)
-    {
-        if (smokePrefab == null) return;
-
-        GameObject vfx = Instantiate(smokePrefab, worldPos + smokeOffset, Quaternion.identity);
-        if (smokeLifetime > 0.01f)
-            Destroy(vfx, smokeLifetime);
-    }
-
-    void OnDeath(Health who, Health.DamageType type)
+    void OnDeath(Health h, Health.DamageType type)
     {
         dead = true;
-
-        if (muzzleLight != null)
-            muzzleLight.enabled = false;
-
-        if (muzzleRoutine != null)
-        {
-            StopCoroutine(muzzleRoutine);
-            muzzleRoutine = null;
-        }
 
         if (agent != null)
         {
             agent.isStopped = true;
-            agent.ResetPath();
             agent.enabled = false;
         }
     }

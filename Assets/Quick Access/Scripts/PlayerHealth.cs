@@ -15,15 +15,16 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("Death Ground Snap")]
     public LayerMask groundLayers = ~0;
-    public float snapRayStartHeight = 1.5f;   // start ray above player
-    public float snapRayLength = 5f;          // how far down to look
-    public float groundOffset = 0.02f;        // tiny lift so we don't clip
+    public float snapRayStartHeight = 1.5f;
+    public float snapRayLength = 5f;
+    public float groundOffset = 0.08f;
 
     bool isDead;
     float nextDamageTime;
 
     Rigidbody rb;
     CapsuleCollider capsule;
+    PlayerController controller;
 
     void Awake()
     {
@@ -33,9 +34,13 @@ public class PlayerHealth : MonoBehaviour
 
         rb = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
+        controller = GetComponent<PlayerController>();
 
         if (animator != null)
+        {
             animator.SetBool(deadBool, false);
+            animator.applyRootMotion = false;
+        }
     }
 
     public void TakeDamage(int amount)
@@ -43,13 +48,11 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         if (amount <= 0) return;
 
-        // cooldown gate
         if (Time.time < nextDamageTime) return;
         nextDamageTime = Time.time + damageCooldown;
 
         int newHealth = Mathf.Clamp(currentHealth - amount, 0, maxHealth);
 
-        // lethal hit: no Hit trigger
         if (newHealth <= 0)
         {
             currentHealth = 0;
@@ -63,13 +66,12 @@ public class PlayerHealth : MonoBehaviour
             animator.SetTrigger(hitTrigger);
     }
 
-    // ✅ NEW: bypasses cooldown + instantly kills (for debug)
     public void KillInstant()
     {
         if (isDead) return;
 
         currentHealth = 0;
-        nextDamageTime = 0f; // not required, but keeps state clean
+        nextDamageTime = 0f;
         Die();
     }
 
@@ -80,23 +82,24 @@ public class PlayerHealth : MonoBehaviour
 
         Debug.Log("Player died!");
 
-        // play KO
         if (animator != null)
             animator.SetBool(deadBool, true);
 
-        // Disable capsule so it doesn't keep the body "standing"
+        // DO NOT disable capsule or the body can sink/clip
         if (capsule != null)
-            capsule.enabled = false;
+            capsule.enabled = true;
 
-        // Stop physics motion
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.isKinematic = true;
+            rb.useGravity = false;
         }
 
-        // Snap root down to ground so KO rests on floor
+        if (controller != null)
+            controller.enabled = false;
+
         SnapToGround();
 
         if (GameManager.Instance != null)
