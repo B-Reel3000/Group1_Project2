@@ -40,7 +40,6 @@ public class PlayerController : MonoBehaviour
     Rigidbody rb;
     Vector2 moveInput;
     float pitch;
-
     bool isAiming;
 
     void Awake()
@@ -58,7 +57,6 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // ✅ Force correct startup state so revolver/reticle/cameras are correct immediately
         ApplyAimState(false, true);
     }
 
@@ -82,10 +80,10 @@ public class PlayerController : MonoBehaviour
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
 
-            // yaw
+            // Rotate player left/right
             transform.Rotate(0f, delta.x * sensitivityX, 0f);
 
-            // pitch
+            // Rotate camera pivot up/down
             pitch -= delta.y * sensitivityY;
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
@@ -96,11 +94,35 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        Vector3 dir = transform.forward * moveInput.y + transform.right * moveInput.x;
-        if (dir.sqrMagnitude > 1f) dir.Normalize();
+        Vector3 moveDir = GetCameraRelativeMoveDirection(moveInput);
 
-        Vector3 nextPos = rb.position + dir * moveSpeed * Time.fixedDeltaTime;
+        Vector3 nextPos = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
         rb.MovePosition(nextPos);
+    }
+
+    Vector3 GetCameraRelativeMoveDirection(Vector2 input)
+    {
+        if (input.sqrMagnitude < 0.0001f)
+            return Vector3.zero;
+
+        Transform cam = Camera.main != null ? Camera.main.transform : transform;
+
+        Vector3 camForward = cam.forward;
+        Vector3 camRight = cam.right;
+
+        // flatten camera vectors so movement stays on ground
+        camForward.y = 0f;
+        camRight.y = 0f;
+
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 move = camForward * input.y + camRight * input.x;
+
+        if (move.sqrMagnitude > 1f)
+            move.Normalize();
+
+        return move;
     }
 
     void ApplyAimState(bool aiming, bool force = false)
@@ -110,11 +132,9 @@ public class PlayerController : MonoBehaviour
         bool wasAiming = isAiming;
         isAiming = aiming;
 
-        // ✅ Sound only when entering aim
         if (!wasAiming && aiming && audioSource != null && hammerCockClip != null)
             audioSource.PlayOneShot(hammerCockClip);
 
-        // ✅ Correct camera priority logic:
         // Not aiming = explore HIGH, aim LOW
         // Aiming = aim HIGH, explore LOW
         if (exploreCam != null)
@@ -123,7 +143,6 @@ public class PlayerController : MonoBehaviour
         if (aimCam != null)
             aimCam.Priority = aiming ? explorePriority : aimPriority;
 
-        // UI / anim / weapon
         if (reticle != null)
             reticle.SetActive(aiming);
 

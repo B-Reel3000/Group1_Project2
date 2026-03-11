@@ -21,6 +21,9 @@ public class PlayerGun : MonoBehaviour
     public float muzzleIntensity = 12f;
     public float muzzleDuration = 0.045f;
 
+    [Header("Muzzle Particle")]
+    public ParticleSystem muzzleParticle;
+
     [Header("Shoot Settings")]
     public float fireCooldown = 0.25f;
     public float range = 100f;
@@ -36,9 +39,11 @@ public class PlayerGun : MonoBehaviour
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
-        // Auto-find light under shootPoint if not assigned
         if (muzzleLight == null && shootPoint != null)
             muzzleLight = shootPoint.GetComponentInChildren<Light>(true);
+
+        if (muzzleParticle == null && shootPoint != null)
+            muzzleParticle = shootPoint.GetComponentInChildren<ParticleSystem>(true);
 
         if (muzzleLight != null)
         {
@@ -69,14 +74,12 @@ public class PlayerGun : MonoBehaviour
 
     void Shoot()
     {
-        // Sound
         if (audioSource != null && gunshotClip != null)
         {
             audioSource.pitch = Random.Range(0.95f, 1.05f);
             audioSource.PlayOneShot(gunshotClip);
         }
 
-        // Muzzle flash
         if (muzzleLight != null)
         {
             if (muzzleRoutine != null)
@@ -85,7 +88,9 @@ public class PlayerGun : MonoBehaviour
             muzzleRoutine = StartCoroutine(MuzzleFlash());
         }
 
-        // Raycast
+        if (muzzleParticle != null)
+            muzzleParticle.Play();
+
         if (shootPoint == null)
         {
             Debug.LogWarning("PlayerGun: shootPoint not assigned.");
