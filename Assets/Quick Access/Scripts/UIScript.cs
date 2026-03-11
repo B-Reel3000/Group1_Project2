@@ -142,11 +142,22 @@ public class UIScript : MonoBehaviour
 
     void Update()
     {
-        if (helpPanel != null && helpPanel.activeSelf) return;
         if (IsInMainMenu()) return;
 
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
+            if (helpPanel != null && helpPanel.activeSelf)
+            {
+                CloseHelpPanel();
+                return;
+            }
+
+            if (creditsPanel != null && creditsPanel.activeSelf)
+            {
+                CloseCreditsPanel();
+                return;
+            }
+
             TogglePause();
         }
     }
@@ -218,8 +229,10 @@ public class UIScript : MonoBehaviour
         if (helpPanel != null) helpPanel.SetActive(true);
         if (pausePanel != null) pausePanel.SetActive(false);
 
-        if (helpUICamera != null)
-            StartCoroutine(MovePauseCameraTo(helpUICamera.transform));
+        if (cameraMoveRoutine != null)
+            StopCoroutine(cameraMoveRoutine);
+
+        cameraMoveRoutine = StartCoroutine(MovePauseCameraTo(helpUICamera.transform));
     }
 
     public void OpenCredits()
@@ -227,8 +240,10 @@ public class UIScript : MonoBehaviour
         if (creditsPanel != null) creditsPanel.SetActive(true);
         if (pausePanel != null) pausePanel.SetActive(false);
 
-        if (creditsUICamera != null)
-            StartCoroutine(MovePauseCameraTo(creditsUICamera.transform));
+        if (cameraMoveRoutine != null)
+            StopCoroutine(cameraMoveRoutine);
+
+        cameraMoveRoutine = StartCoroutine(MovePauseCameraTo(creditsUICamera.transform));
     }
 
     public void CloseHelpPanel()
@@ -236,7 +251,10 @@ public class UIScript : MonoBehaviour
         if (helpPanel != null) helpPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
 
-        StartCoroutine(MovePauseCameraBack());
+        if (cameraMoveRoutine != null)
+            StopCoroutine(cameraMoveRoutine);
+
+        cameraMoveRoutine = StartCoroutine(MovePauseCameraBack());
     }
 
     public void CloseCreditsPanel()
@@ -244,7 +262,10 @@ public class UIScript : MonoBehaviour
         if (creditsPanel != null) creditsPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
 
-        StartCoroutine(MovePauseCameraBack());
+        if (cameraMoveRoutine != null)
+            StopCoroutine(cameraMoveRoutine);
+
+        cameraMoveRoutine = StartCoroutine(MovePauseCameraBack());
     }
 
     IEnumerator MovePauseCameraBack()
@@ -326,30 +347,6 @@ public class UIScript : MonoBehaviour
 
         slideRect.anchoredPosition = targetPos;
     }
-
-    //public void OpenHelpPanel()
-    //{
-    //    if (helpPanel != null) helpPanel.SetActive(true);
-    //    if (pausePanel != null) pausePanel.SetActive(false);
-    //}
-
-    //public void CloseHelpPanel()
-    //{
-    //    if (helpPanel != null) helpPanel.SetActive(false);
-    //    if (pausePanel != null) pausePanel.SetActive(true);
-    //}
-
-    //public void OpenCredits()
-    //{
-    //    if (creditsPanel != null) creditsPanel.SetActive(true);
-    //    if (pausePanel != null) pausePanel.SetActive(false);
-    //}
-
-    //public void CloseCreditsPanel()
-    //{
-    //    if (creditsPanel != null) creditsPanel.SetActive(false);
-    //    if (pausePanel != null) pausePanel.SetActive(true);
-    //}
 
     public void ResumeGame()
     {
