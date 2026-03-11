@@ -7050,7 +7050,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 290, y: 51}
+  m_AnchoredPosition: {x: 339, y: 186}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &679547311
@@ -7075,15 +7075,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: A Devil of a Time
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8883b5e6d9801944d8584cc20629ffdd, type: 2}
-  m_sharedMaterial: {fileID: 2009099693989015934, guid: 8883b5e6d9801944d8584cc20629ffdd, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 994ca7513befd8245a63cb483188e801, type: 2}
+  m_sharedMaterial: {fileID: 5528324366325862576, guid: 994ca7513befd8245a63cb483188e801, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278913843
-  m_fontColor: {r: 0.1981132, g: 0.042052336, b: 0.042052336, a: 1}
+    rgba: 4288334040
+  m_fontColor: {r: 0.84705883, g: 0.78431374, b: 0.6039216, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -7107,8 +7107,8 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -7139,7 +7139,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -566.03345, y: 0, z: 0, w: 0}
+  m_margin: {x: -1223.3331, y: 0, z: -488.2802, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -12994,8 +12994,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Level Two:'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 540c0e2b1e439134c9b02cca1a0b7dc6, type: 2}
-  m_sharedMaterial: {fileID: 8765105342527638815, guid: 540c0e2b1e439134c9b02cca1a0b7dc6, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 994ca7513befd8245a63cb483188e801, type: 2}
+  m_sharedMaterial: {fileID: 5528324366325862576, guid: 994ca7513befd8245a63cb483188e801, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -27243,15 +27243,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: Jack "The Devil" Porter
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 540c0e2b1e439134c9b02cca1a0b7dc6, type: 2}
-  m_sharedMaterial: {fileID: 8765105342527638815, guid: 540c0e2b1e439134c9b02cca1a0b7dc6, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 994ca7513befd8245a63cb483188e801, type: 2}
+  m_sharedMaterial: {fileID: 5528324366325862576, guid: 994ca7513befd8245a63cb483188e801, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4288334040
+  m_fontColor: {r: 0.84705883, g: 0.78431374, b: 0.6039216, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -27268,8 +27268,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 28.2
-  m_fontSizeBase: 28.2
+  m_fontSize: 22.59
+  m_fontSizeBase: 22.59
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
